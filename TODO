@@ -1,0 +1,5 @@
+purelibc is not complete.
+
+... a lot of secondary calls are still missing.
+those tightly linked to the syscall routines in glibs must be reimplemented,
+all the others are already diverted to purelibc.
