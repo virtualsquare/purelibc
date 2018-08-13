@@ -1425,7 +1425,7 @@ int symlinkat(const char *oldpath, int newdirfd, const char *newpath){
 
 #ifdef __NR_readlinkat
 ssize_t readlinkat(int dirfd, const char *pathname,char *buf, size_t bufsiz){
-	return _pure_syscall(__NR_readlinkat,dirfd,pathname,bufsiz);
+	return _pure_syscall(__NR_readlinkat,dirfd,pathname,buf,bufsiz);
 }
 #endif
 
