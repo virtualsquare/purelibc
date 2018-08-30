@@ -524,6 +524,12 @@ __off_t lseek(int fd,__off_t offset,int whence){
 	return _pure_syscall(__NR_lseek,fd,offset,whence);
 }
 
+#ifndef __NR__llseek
+off64_t lseek64(int fd, off64_t offset, int whence) {
+	return lseek(fd, offset, whence);
+}
+#endif
+
 #ifdef __NR__llseek
 __off64_t lseek64(int fd, __off64_t offset, int whence){
 	unsigned long offset_high=offset >> (sizeof(unsigned long) * 8);
@@ -1413,7 +1419,7 @@ int renameat(int olddirfd, const char *oldpath,int newdirfd, const char *newpath
 
 #ifdef __NR_linkat
 int linkat(int olddirfd, const char *oldpath,int newdirfd, const char *newpath, int flags){
-	return _pure_syscall(__NR_linkat,oldpath,newdirfd,newpath,flags);
+	return _pure_syscall(__NR_linkat,olddirfd,oldpath,newdirfd,newpath,flags);
 }
 #endif
 
