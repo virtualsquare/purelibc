@@ -40,7 +40,6 @@ int execl(const char *path, const char *arg, ...){
 		argc++;
 	va_end(ap);
 	char *argv[argc];
-	assert(argv);
 	argv[0]=(char *)arg;
 	va_start(ap,arg);
 	for (i=1;i<argc;i++)
@@ -58,7 +57,6 @@ int execlp(const char *file, const char *arg, ...){
 		argc++;
 	va_end(ap);
 	char *argv[argc];
-	assert(argv);
 	argv[0]=(char *)arg;
 	va_start(ap,arg);
 	for (i=1;i<argc;i++)
@@ -76,7 +74,6 @@ int execle(const char *path, const char *arg , .../*, char * const envp[]*/){
 		argc++;
 	va_end(ap);
 	char *argv[argc];
-	assert(argv);
 	argv[0]=(char *)arg;
 	va_start(ap,arg);
 	for (i=1;i<argc;i++)

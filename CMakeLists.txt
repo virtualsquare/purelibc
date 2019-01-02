@@ -15,7 +15,7 @@ add_library(purelibc SHARED
 target_link_libraries(purelibc ${LIBDL})
 
 set_target_properties(purelibc PROPERTIES 
-		VERSION "1.0.1"
+		VERSION "1.0.2"
 		SOVERSION "1")
 
 install(TARGETS purelibc LIBRARY DESTINATION lib)

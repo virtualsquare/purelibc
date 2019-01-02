@@ -53,7 +53,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <dlfcn.h>
-#include <ustat.h>
 #include <string.h>
 #include <time.h>
 #include <grp.h>
@@ -856,6 +855,7 @@ clock_t times(struct tms *buf){
 	return _pure_syscall(__NR_times,buf);
 }
 
+struct ustat;
 int ustat(dev_t dev, struct ustat *ubuf){
 	return _pure_syscall(__NR_ustat,dev,ubuf);
 }
