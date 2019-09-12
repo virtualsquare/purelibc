@@ -6,7 +6,7 @@ This is PURE\_LIBC: an overlay library for glibc that allows system call capturi
 (C) 2006,2008 Renzo Davoli University of Bologna (ITALY)
 (C) 2006 Andrea Gasparini University of Bologna (ITALY)
  
-This is LIBRE software: this work has been released under the GPLv2
+This is LIBRE software: this work has been released under the LGPLv2,1+
 license (see the file COPYING and the header note in the source files).
 
 Pure\_libc converts glibc from a libc+system interfacing library into a 
