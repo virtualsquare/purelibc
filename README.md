@@ -53,6 +53,17 @@ bypass purelibc and send a system call to the kernel.
 WARNING: libc '`syscall(2)`' call itself gets diverted to the `pure_syscall`
 function, too.
 
+## Installation
+
+purelibc uses the cmake, so the standard procedure to compile and install the library is:
+```
+$ mkdir build
+$ cd build
+$ cmake ..
+$ make
+$ sudo make install
+```
+
 ## Examples
 The following test program prints the number of each system call before actually calling it (it is a 'cat' like stdin to stdout copy, when EOF is sent it prints "hello world"):
 ```C
