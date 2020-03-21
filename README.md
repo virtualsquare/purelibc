@@ -19,7 +19,7 @@ properly when reopening files different from std{in,out,err}.
 
 This function:
 ```C
-fun _pure_start(sfun pure_syscall,sfun pure_socketcall,int flags);
+fun _pure_start(sfun pure_syscall,int flags);
 ```
 starts the syscall tracing.
 All the system call of the programs are converted into calls of the
@@ -86,7 +86,7 @@ static long int mysc(long int sysno, ...){
 
 main() {
 	int c;
-	_native_syscall=_pure_start(mysc,NULL,PUREFLAG_STDALL);
+	_native_syscall=_pure_start(mysc,PUREFLAG_STDALL);
 	while ((c=getchar()) != EOF)
 		putchar(c);
 	printf("hello world\n");
