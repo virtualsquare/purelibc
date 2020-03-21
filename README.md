@@ -99,9 +99,15 @@ in this way:
 $ gcc -o puretest puretest.c -lpurelibc
 ```
 if you installed purelibc library in /usr/local/lib you need to add this 
-directory to the linker search path:
+directory to the linker search path,
+
+with CSH:
 ```
 $ setenv LD_LIBRARY_PATH /usr/local/lib
+```
+or with BASH:
+```
+$ export LD_LIBRARY_PATH="/usr/local/lib"
 ```
 Unfortunately if you load purelibc as a dynamic library by dlopen
 it does not work.
