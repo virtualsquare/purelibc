@@ -19,7 +19,7 @@ properly when reopening files different from std{in,out,err}.
 
 This function:
 ```C
-fun _pure_start(sfun pure_syscall,sfun pure_socketcall,int flags);
+fun _pure_start(sfun pure_syscall,int flags);
 ```
 starts the syscall tracing.
 All the system call of the programs are converted into calls of the
@@ -52,6 +52,17 @@ bypass purelibc and send a system call to the kernel.
 
 WARNING: libc '`syscall(2)`' call itself gets diverted to the `pure_syscall`
 function, too.
+
+## Installation
+
+purelibc uses the cmake, so the standard procedure to compile and install the library is:
+```
+$ mkdir build
+$ cd build
+$ cmake ..
+$ make
+$ sudo make install
+```
 
 ## Examples
 The following test program prints the number of each system call before actually calling it (it is a 'cat' like stdin to stdout copy, when EOF is sent it prints "hello world"):
@@ -86,7 +97,7 @@ static long int mysc(long int sysno, ...){
 
 main() {
 	int c;
-	_native_syscall=_pure_start(mysc,NULL,PUREFLAG_STDALL);
+	_native_syscall=_pure_start(mysc,PUREFLAG_STDALL);
 	while ((c=getchar()) != EOF)
 		putchar(c);
 	printf("hello world\n");
@@ -99,9 +110,15 @@ in this way:
 $ gcc -o puretest puretest.c -lpurelibc
 ```
 if you installed purelibc library in /usr/local/lib you need to add this 
-directory to the linker search path:
+directory to the linker search path,
+
+with CSH:
 ```
 $ setenv LD_LIBRARY_PATH /usr/local/lib
+```
+or with BASH:
+```
+$ export LD_LIBRARY_PATH="/usr/local/lib"
 ```
 Unfortunately if you load purelibc as a dynamic library by dlopen
 it does not work.
