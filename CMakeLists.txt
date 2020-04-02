@@ -1,5 +1,11 @@
-cmake_minimum_required(VERSION 2.6)
-project("purelibc")
+cmake_minimum_required(VERSION 3.13)
+project(purelibc
+	VERSION 1.0.2
+	DESCRIPTION "A glibc overlay library for process self-virtualization."
+	HOMEPAGE_URL "https://github.com/virtualsquare/purelibc"
+	LANGUAGES C)
+
+include(GNUInstallDirs)
 
 set(CMAKE_C_FLAGS
     "-ggdb -Wall -Wextra -pedantic -std=gnu11 -Wno-incompatible-pointer-types -Wno-unused-parameter")
@@ -14,10 +20,11 @@ add_library(purelibc SHARED
 )
 target_link_libraries(purelibc ${LIBDL})
 
-set_target_properties(purelibc PROPERTIES 
-		VERSION "1.0.2"
-		SOVERSION "1")
+set_target_properties(purelibc PROPERTIES VERSION ${PROJECT_VERSION}
+        SOVERSION ${PROJECT_VERSION_MAJOR})
 
-install(TARGETS purelibc LIBRARY DESTINATION lib)
-install(FILES ${HEADERS} DESTINATION include)
+install(TARGETS purelibc LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(FILES ${HEADERS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
+add_custom_target(uninstall
+	"${CMAKE_COMMAND}" -P "${PROJECT_SOURCE_DIR}/Uninstall.cmake")
