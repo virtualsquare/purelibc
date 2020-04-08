@@ -64,6 +64,13 @@ $ make
 $ sudo make install
 ```
 
+## Removal
+
+To remove purelibc open the build folder mentioned above and type the following command:
+```
+$ sudo make uninstall
+```
+
 ## Examples
 The following test program prints the number of each system call before actually calling it (it is a 'cat' like stdin to stdout copy, when EOF is sent it prints "hello world"):
 ```C
