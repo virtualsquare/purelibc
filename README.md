@@ -102,7 +102,7 @@ static long int mysc(long int sysno, ...){
 	return _native_syscall(sysno,a1,a2,a3,a4,a5,a6);
 }
 
-main() {
+int main() {
 	int c;
 	_native_syscall=_pure_start(mysc,PUREFLAG_STDALL);
 	while ((c=getchar()) != EOF)
@@ -168,7 +168,7 @@ static long int mysc(long int sysno, ...){
 	return _native_syscall(sysno,a1,a2,a3,a4,a5,a6);
 }
 
-main(int argc,char *argv[]) {
+int main(int argc,char *argv[]) {
 	int c;
 	sfun (*_pure_start_p)();
 	void *handle;
