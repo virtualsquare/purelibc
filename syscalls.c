@@ -511,12 +511,12 @@ ssize_t pwritev(int fs,const struct iovec *iov, int iovcnt, __off_t offset){
 }
 #endif
 
-int getdents(int fd, long dirp,unsigned int count){
-	return _pure_syscall(__NR_getdents,fd,dirp,count);
+int getdents(int fd, void *dirp, unsigned int count){
+	return _pure_syscall(__NR_getdents, fd, dirp, count);
 }
 
-int getdents64(int fd, long dirp,unsigned int count){
-	return _pure_syscall(__NR_getdents64,fd,dirp,count);
+__ssize_t getdents64(int fd, void *dirp, size_t count){
+	return _pure_syscall(__NR_getdents64, fd, dirp, count);
 }
 
 __off_t lseek(int fd,__off_t offset,int whence){
