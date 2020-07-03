@@ -899,7 +899,12 @@ int getrusage(int who, struct rusage *usage){
 	return _pure_syscall(__NR_getrusage,usage);
 }
 
-int gettimeofday(struct timeval *tv, struct timezone *tz){
+#ifdef GETTIMEOFDAY_TZ
+int gettimeofday(struct timeval *tv, struct timezone *tz)
+#else
+int gettimeofday(struct timeval *tv, void *tz)
+#endif
+{
 	return _pure_syscall(__NR_gettimeofday, tv, tz);
 }
 
