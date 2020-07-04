@@ -1,10 +1,15 @@
-cmake_minimum_required(VERSION 3.11)
+cmake_minimum_required(VERSION 3.13)
+project(purelibc
+ VERSION 1.0.2
+ DESCRIPTION "A glibc overlay library for process self-virtualization."
+ HOMEPAGE_URL "https://github.com/virtualsquare/purelibc"
+ LANGUAGES C)
+include(GNUInstallDirs)
+
 include(CheckPrototypeDefinition)
 
-project("purelibc")
-
 set(CMAKE_C_FLAGS
-    "-ggdb -Wall -Wextra -pedantic -std=gnu11 -Wno-incompatible-pointer-types -Wno-unused-parameter")
+    "${CMAKE_C_FLAGS} -D_FORTIFY_SOURCE=2 -ggdb -Wall -Wextra -pedantic -std=gnu11 -Wno-incompatible-pointer-types -Wno-unused-parameter")
 find_library(LIBDL dl)
 
 add_definitions(-D_GNU_SOURCE)
@@ -24,7 +29,7 @@ check_prototype_definition(gettimeofday
 	GETTIMEOFDAY_VOID)
 
 if(${GETTIMEOFDAY_TZ})
- 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DGETTIMEOFDAY_TZ")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DGETTIMEOFDAY_TZ")
 endif()
 
 add_library(purelibc SHARED
@@ -32,10 +37,11 @@ add_library(purelibc SHARED
 )
 target_link_libraries(purelibc ${LIBDL})
 
-set_target_properties(purelibc PROPERTIES 
-		VERSION "1.0.2"
-		SOVERSION "1")
+set_target_properties(purelibc PROPERTIES VERSION ${PROJECT_VERSION}
+	SOVERSION ${PROJECT_VERSION_MAJOR})
 
-install(TARGETS purelibc LIBRARY DESTINATION lib)
-install(FILES ${HEADERS} DESTINATION include)
+install(TARGETS purelibc LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(FILES ${HEADERS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
+add_custom_target(uninstall
+	"${CMAKE_COMMAND}" -P "${PROJECT_SOURCE_DIR}/Uninstall.cmake")
