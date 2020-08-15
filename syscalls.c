@@ -2,7 +2,7 @@
  *  
  *   syscalls.c: syscall mgmt
  *   
- *   Copyright 2006-2017 Renzo Davoli University of Bologna - Italy
+ *   Copyright 2006-2020 Renzo Davoli University of Bologna - Italy
  *   Copyright 2005 Andrea Gasparini University of Bologna - Italy
  *   
  * This program is free software; you can redistribute it and/or
@@ -313,18 +313,6 @@ int access(const char* pathname,int mode){
 int __access(const char* pathname,int mode){
 	return access(pathname,mode);
 }
-
-#ifdef __NR_faccessat
-int euidaccess(const char *pathname, int mode){
-	return _pure_syscall(__NR_faccessat,AT_FDCWD,pathname,mode,AT_EACCESS);
-}
-int eaccess(const char *pathname, int mode){
-	return euidaccess(pathname,mode);
-}
-int __euidaccess(const char *pathname, int mode){
-	return euidaccess(pathname,mode);
-}
-#endif
 
 ssize_t readlink(const char* pathname,char* buf, size_t bufsize){
 	return _pure_syscall(__NR_readlink,pathname,buf,bufsize);
@@ -929,6 +917,20 @@ int getgroups(int size, gid_t list[]){
 	return _pure_syscall(__NR_getgroups,size,list);
 }
 
+#ifdef __NR_faccessat
+static int _is_group_member(gid_t gid) {
+  int len = getgroups(0, NULL);
+  gid_t list[len];
+  int i;
+  len = getgroups(len, list);
+  for (i = 0; i < len; i++) {
+    if (gid == list[i])
+      return 1;
+  }
+  return 0;
+}
+#endif
+
 int setgroups(size_t size, const gid_t *list){
 	return _pure_syscall(__NR_setgroups,size,list);
 }
@@ -1447,8 +1449,61 @@ int fchmodat(int dirfd, const char *pathname, mode_t mode, int flags){
 #endif
 
 #ifdef __NR_faccessat
+//The raw faccessat() system call takes only the first  three  arguments
+// this function has been inspired by glibc: sysdeps/unix/sysv/linux/faccessat.c
 int faccessat(int dirfd, const char *pathname, int mode, int flags){
-	return _pure_syscall(__NR_faccessat,dirfd,pathname,mode,flags);
+	if (flags & ~(AT_EACCESS | AT_SYMLINK_NOFOLLOW)) {
+    errno = EINVAL;
+    return -1;
+  }
+
+	if (flags == 0)
+		return _pure_syscall(__NR_faccessat,dirfd,pathname,mode);
+	else {
+		struct stat stats;
+		if (fstatat(dirfd, pathname, &stats, flags & AT_SYMLINK_NOFOLLOW) < 0)
+			return -1;
+		mode &= (R_OK | W_OK | X_OK);
+		if (mode == F_OK)
+			return 0;
+		uid_t uid = (flags & AT_EACCESS) ? geteuid() : getuid();
+		if (uid == 0) { // it is root
+			if ((mode & X_OK) == 0) // RW are always allowed
+				return 0;
+			// X OK is X is okay for someone
+			if (stats.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))
+				return 0;
+		}
+
+		int granted;
+		if (uid == stats.st_uid)
+			// user permissions
+			granted = (int) ((stats.st_mode >> 6) & mode);
+		else {
+			gid_t gid = (flags & AT_EACCESS) ? getegid() : getgid();
+			if (stats.st_gid == gid || _is_group_member(stats.st_gid))
+				// group permissions
+				granted = (int) ((stats.st_mode >> 3) & mode);
+			else
+				// other permissions
+				granted = stats.st_mode & mode;
+		}
+		if (granted == mode)
+			return 0;
+
+		errno = EACCES;
+		return -1;
+	}
+}
+
+int euidaccess(const char *pathname, int mode){
+	return faccessat(AT_FDCWD,pathname,mode,AT_EACCESS);
+}
+int eaccess(const char *pathname, int mode){
+	return euidaccess(pathname,mode);
+}
+int __euidaccess(const char *pathname, int mode){
+	return euidaccess(pathname,mode);
 }
 #endif
 
