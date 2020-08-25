@@ -92,10 +92,23 @@ long _pure_debug_printf(const char *format, ...)
 	return rv;
 }
 
-/* DAMNED! the kernel stat are different! so glibc converts the 
- *  * kernel structure. We have to make the reverse conversion! */
-
 // open must consider two mode of calling: with two or three arguments
+int __open_2(const char* pathname,int flags){
+#if defined(__NR_openat) && ! defined(__NR_open)
+	return _pure_syscall(__NR_openat,AT_FDCWD,pathname,flags);
+#else
+	return _pure_syscall(__NR_open,pathname,flags);
+#endif
+}
+
+static int __open_3(const char* pathname,int flags, mode_t mode) {
+#if defined(__NR_openat) && ! defined(__NR_open)
+	return _pure_syscall(__NR_openat,AT_FDCWD,pathname,flags,mode);
+#else
+	return _pure_syscall(__NR_open,pathname,flags,mode);
+#endif
+}
+
 int open(const char* pathname,int flags,...){
 	va_list arg_list;
 	if( flags &  O_CREAT ){
@@ -103,14 +116,10 @@ int open(const char* pathname,int flags,...){
 		va_start(arg_list,flags);
 		mode = va_arg(arg_list,mode_t);
 		va_end(arg_list);
-		return _pure_syscall(__NR_open,pathname,flags,mode);
+		return __open_3(pathname,flags,mode);
 	}
 	else
-		return _pure_syscall(__NR_open,pathname,flags);
-}
-
-int __open_2(const char* pathname,int flags){
-	return _pure_syscall(__NR_open,pathname,flags);
+		return __open_2(pathname,flags);
 }
 
 int open64(const char* pathname,int flags,...){
@@ -120,24 +129,24 @@ int open64(const char* pathname,int flags,...){
 		va_start(arg_list,flags);
 		mode = va_arg(arg_list,mode_t);
 		va_end(arg_list);
-		return _pure_syscall(__NR_open,pathname,flags|O_LARGEFILE,mode);
+		return __open_3(pathname,flags|O_LARGEFILE,mode);
 	}
 	else
-		return _pure_syscall(__NR_open,pathname,flags|O_LARGEFILE);
+		return __open_2(pathname,flags|O_LARGEFILE);
 }
 
 int __open64_2 (const char* pathname,int flags){
-	return _pure_syscall(__NR_open,pathname,flags|O_LARGEFILE);
+	return __open_2(pathname,flags|O_LARGEFILE);
 }
 
 int creat(const char *pathname, mode_t mode)
 {
-	return _pure_syscall(__NR_open,pathname,O_CREAT|O_WRONLY|O_TRUNC,mode);
+	return __open_3(pathname,O_CREAT|O_WRONLY|O_TRUNC,mode);
 }
 
 int creat64(const char *pathname, mode_t mode)
 {
-	return _pure_syscall(__NR_open,pathname,O_CREAT|O_WRONLY|O_TRUNC|O_LARGEFILE,mode);
+	return __open_3(pathname,O_CREAT|O_WRONLY|O_TRUNC|O_LARGEFILE,mode);
 }
 
 int close(int fd){
@@ -192,10 +201,23 @@ int dup3(int oldfd, int newfd, int flags){
  * myself. The following not-so-readable stuff takes care of calling the
  * correct 64-bit function on both 32 bit and 64 bit architectures.*/
 
+#ifdef __NR_fstatat64
+#define __NR_FSTATAT64 __NR_fstatat64
+#endif
+#ifdef __NR_newfstatat
+#define __NR_FSTATAT64 __NR_newfstatat
+#endif
+
 #if __WORDSIZE == 64
+# if defined(__NR_FSTATAT64) && ! defined(__NR_stat)
+#  define __USE_FSTATAT64
+# endif
 #	define arch_stat64 stat
 #	define IFNOT64(x)
 #else
+# if defined(__NR_FSTATAT64) && ! defined(__NR_stat64)
+#  define __USE_FSTATAT64
+# endif
 #	define arch_stat64 stat64
 #	define IFNOT64(x) x
 #endif
@@ -203,7 +225,7 @@ int dup3(int oldfd, int newfd, int flags){
 #define INTERNAL_MAKE_NAME(a, b) a ## b
 #define MAKE_NAME(a, b) INTERNAL_MAKE_NAME(a, b)
 
-void arch_stat64_2_stat(struct arch_stat64 *from, struct stat *to)
+static void arch_stat64_2_stat(struct arch_stat64 *from, struct stat *to)
 {
 	if ((void*)from == (void*)to)
 		return;
@@ -233,7 +255,11 @@ int __xstat(int ver, const char* pathname, struct stat* buf_stat)
 	switch(ver)
 	{
 		case _STAT_VER_LINUX:
+#ifdef __USE_FSTATAT64
+			rv = _pure_syscall(__NR_FSTATAT64, AT_FDCWD, pathname, MAKE_NAME(buf_, arch_stat64), 0);
+#else
 			rv = _pure_syscall(MAKE_NAME(__NR_, arch_stat64), pathname, MAKE_NAME(buf_, arch_stat64));
+#endif
 			break;
 
 		default:
@@ -255,7 +281,11 @@ int __lxstat(int ver, const char* pathname, struct stat* buf_stat)
 	switch(ver)
 	{
 		case _STAT_VER_LINUX:
+#ifdef __USE_FSTATAT64
+			rv = _pure_syscall(__NR_FSTATAT64, AT_FDCWD, pathname, MAKE_NAME(buf_, arch_stat64), AT_SYMLINK_NOFOLLOW);
+#else
 			rv = _pure_syscall(MAKE_NAME(__NR_l, arch_stat64), pathname, MAKE_NAME(buf_, arch_stat64));
+#endif
 			break;
 
 		default:
@@ -290,17 +320,31 @@ int __fxstat(int ver, int fildes, struct stat* buf_stat)
 }
 
 int __xstat64(int ver,const char* pathname,struct stat64* buf){
+#ifdef __USE_FSTATAT64
+	return _pure_syscall(__NR_FSTATAT64, AT_FDCWD, pathname, buf, 0);
+#else
 	return _pure_syscall(MAKE_NAME(__NR_, arch_stat64), pathname, buf);
+#endif
 }
 
 int __lxstat64(int ver,const char* pathname,struct stat64* buf){
+#ifdef __USE_FSTATAT64
+	return _pure_syscall(__NR_FSTATAT64, AT_FDCWD, pathname, buf,	AT_SYMLINK_NOFOLLOW);
+#else
 	return _pure_syscall(MAKE_NAME(__NR_l, arch_stat64), pathname, buf);
+#endif
 }
 
 int __fxstat64 (int ver, int fildes, struct stat64 *buf){
 	return _pure_syscall(MAKE_NAME(__NR_f, arch_stat64), fildes, buf);
 }
 /* end of unreadable code */
+#ifdef __NR_statx
+int statx(int dirfd, const char *pathname, int flags,
+		unsigned int mask, struct statx *statxbuf) {
+	return _pure_syscall(__NR_statx, dirfd, pathname, flags, mask, statxbuf);
+}
+#endif
 
 int mknod(const char *pathname, mode_t mode, dev_t dev) {
 #if defined(__NR_mknodat) && ! defined(__NR_mknod)
@@ -382,7 +426,7 @@ int fchown(int fd,uid_t owner,gid_t group){
 	return _pure_syscall(__NR_fchown,fd,owner,group);
 }
 
-int link(const char* pathname,const char* newpath){
+int link(const char* pathname,const char*newpath){
 #if defined(__NR_linkat) && ! defined(__NR_link)
 	return _pure_syscall(__NR_linkat,AT_FDCWD,pathname,AT_FDCWD,newpath,0);
 #else
@@ -558,8 +602,15 @@ ssize_t pwritev(int fs,const struct iovec *iov, int iovcnt, __off_t offset){
 }
 #endif
 
+/* getdents has no libc wrapper.
+	 libc uses getdents64 only on 64 bit archs */
 int getdents(int fd, void *dirp, unsigned int count){
+#ifdef __NR_getdents
 	return _pure_syscall(__NR_getdents, fd, dirp, count);
+#else
+	errno = ENOSYS;
+	return -1;
+#endif
 }
 
 __ssize_t getdents64(int fd, void *dirp, size_t count){
@@ -1474,12 +1525,6 @@ int futimesat(int dirfd, const char *pathname, const struct timeval times[2]) {
 }
 #endif
 
-#ifdef __NR_fstatat64
-#define __NR_FSTATAT64 __NR_fstatat64
-#endif
-#ifdef __NR_newfstatat
-#define __NR_FSTATAT64 __NR_newfstatat
-#endif
 #ifdef __NR_FSTATAT64
 int fstatat(int dirfd, const char *pathname, struct stat *buf, int flags) {
 	return _pure_syscall(__NR_FSTATAT64,dirfd,pathname,buf,flags);
