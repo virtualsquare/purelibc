@@ -169,12 +169,16 @@ int dup(int oldfd){
 }
 
 int dup2(int oldfd, int newfd){
+#if defined(__NR_dup3) && ! defined(__NR_dup2)
+	return _pure_syscall(__NR_dup3, oldfd, newfd, 0);
+#else
 	return _pure_syscall(__NR_dup2, oldfd, newfd);
+#endif
 }
 
 #ifdef __NR_dup3
 int dup3(int oldfd, int newfd, int flags){
-	  return _pure_syscall(__NR_dup3, oldfd, newfd,flags);
+	  return _pure_syscall(__NR_dup3, oldfd, newfd, flags);
 }
 #endif
 
@@ -299,7 +303,11 @@ int __fxstat64 (int ver, int fildes, struct stat64 *buf){
 /* end of unreadable code */
 
 int mknod(const char *pathname, mode_t mode, dev_t dev) {
+#if defined(__NR_mknodat) && ! defined(__NR_mknod)
 	return _pure_syscall(__NR_mknod,pathname,mode,dev);
+#else
+	return _pure_syscall(__NR_mknodat,AT_FDCWD,pathname,mode,dev);
+#endif
 }
 
 int __xmknod (int ver, const char *path, mode_t mode, dev_t *dev) {
@@ -307,7 +315,11 @@ int __xmknod (int ver, const char *path, mode_t mode, dev_t *dev) {
 }
 
 int access(const char* pathname,int mode){
+#if defined(__NR_faccessat) && ! defined(__NR_access)
+	return _pure_syscall(__NR_faccessat,AT_FDCWD,pathname,mode,0);
+#else
 	return _pure_syscall(__NR_access,pathname,mode);
+#endif
 }
 
 int __access(const char* pathname,int mode){
@@ -315,19 +327,35 @@ int __access(const char* pathname,int mode){
 }
 
 ssize_t readlink(const char* pathname,char* buf, size_t bufsize){
+#if defined(__NR_readlinkat) && ! defined(__NR_readlink)
 	return _pure_syscall(__NR_readlink,pathname,buf,bufsize);
+#else
+	return _pure_syscall(__NR_readlinkat,AT_FDCWD,pathname,buf,bufsize);
+#endif
 }
 
 int mkdir(const char* pathname,mode_t mode){
+#if defined(__NR_mkdirat) && ! defined(__NR_mkdir)
 	return _pure_syscall(__NR_mkdir,pathname,mode);
+#else
+	return _pure_syscall(__NR_mkdirat,AT_FDCWD,pathname,mode);
+#endif
 }
 
 int rmdir(const char* pathname){
+#if defined(__NR_unlinkat) && ! defined(__NR_rmdir)
+	return _pure_syscall(__NR_unlinkat,AT_FDCWD,pathname,AT_REMOVEDIR);
+#else
 	return _pure_syscall(__NR_rmdir,pathname);
+#endif
 }
 
 int chmod(const char* pathname,mode_t mode){
+#if defined(__NR_fchownat) && ! defined(__NR_chmod)
+	return _pure_syscall(__NR_fchownat,AT_FDCWD,pathname,mode,0);
+#else
 	return _pure_syscall(__NR_chmod,pathname,mode);
+#endif
 }
 
 int fchmod(int fd,mode_t mode){
@@ -335,11 +363,19 @@ int fchmod(int fd,mode_t mode){
 }
 
 int chown(const char* pathname,uid_t owner,gid_t group){
+#if defined(__NR_fchownat) && ! defined(__NR_chown)
+	return _pure_syscall(__NR_fchownat,AT_FDCWD,pathname,owner,group,0);
+#else
 	return _pure_syscall(__NR_chown,pathname,owner,group);
+#endif
 }
 
 int lchown(const char* pathname,uid_t owner,gid_t group){
+#if defined(__NR_fchownat) && ! defined(__NR_lchown)
+	return _pure_syscall(__NR_fchownat,AT_FDCWD,pathname,owner,group,AT_SYMLINK_NOFOLLOW);
+#else
 	return _pure_syscall(__NR_lchown,pathname,owner,group);
+#endif
 }
 
 int fchown(int fd,uid_t owner,gid_t group){
@@ -347,19 +383,35 @@ int fchown(int fd,uid_t owner,gid_t group){
 }
 
 int link(const char* pathname,const char* newpath){
+#if defined(__NR_linkat) && ! defined(__NR_link)
+	return _pure_syscall(__NR_linkat,AT_FDCWD,pathname,AT_FDCWD,newpath,0);
+#else
 	return _pure_syscall(__NR_link,pathname,newpath);
+#endif
 }
 
 int unlink(const char* pathname){
+#if defined(__NR_unlinkat) && ! defined(__NR_unlink)
+	return _pure_syscall(__NR_unlinkat,AT_FDCWD,pathname,0);
+#else
 	return _pure_syscall(__NR_unlink,pathname);
+#endif
 }
 
 int symlink(const char* pathname,const char* newpath){
+#if defined(__NR_symlinkat) && ! defined(__NR_symlink)
+	return _pure_syscall(__NR_symlinkat,pathname,AT_FDCWD,newpath,0);
+#else
 	return _pure_syscall(__NR_symlink,pathname,newpath);
+#endif
 }
 
 int rename(const char *oldpath, const char *newpath){
+#if defined(__NR_renameat2) && ! defined(__NR_rename)
+	return _pure_syscall(__NR_renameat2,AT_FDCWD,oldpath,AT_FDCWD,newpath,0);
+#else
 	return _pure_syscall(__NR_rename,oldpath,newpath);
+#endif
 }
 
 int chdir(const char *path) {
@@ -371,7 +423,14 @@ int fchdir(int fd) {
 }
 
 int utimes(const char* pathname,const struct timeval tv[2]){
+#if defined(__NR_utimensat) && ! defined(__NR_utimes)
+	struct timespec times[2] = {
+		{tv[0].tv_sec, tv[0].tv_usec * 1000},
+		{tv[1].tv_sec, tv[1].tv_usec * 1000}};
+	return _pure_syscall(__NR_utimensat, AT_FDCWD, pathname, ts, 0);
+#else
 	return _pure_syscall(__NR_utimes,pathname,tv);
+#endif
 }
 
 int utime(const char* pathname,const struct utimbuf *buf){
@@ -754,7 +813,11 @@ int setresgid(gid_t rgid, gid_t egid, gid_t sgid){
 }
 
 int pipe(int filedes[2]) {
+#if defined(__NR_pipe2) && ! defined(__NR_pipe)
+	return _pure_syscall(__NR_pipe2,filedes, 0);
+#else
 	return _pure_syscall(__NR_pipe,filedes);
+#endif
 }
 
 #ifdef __NR_pipe2
@@ -807,7 +870,7 @@ pid_t vfork(void){
 	 * proper system sharing mechanisms are  implemented.   Users  should  not
 	 * depend  on  the memory sharing semantics of vfork() as it will, in that
 	 * case, be made synonymous to fork(2)." */
-	return _pure_syscall(__NR_fork);
+	return fork();
 }
 
 int stime(const time_t *t){
@@ -859,7 +922,12 @@ clock_t times(struct tms *buf){
 
 struct ustat;
 int ustat(dev_t dev, struct ustat *ubuf){
+#ifdef __NR_ustat
 	return _pure_syscall(__NR_ustat,dev,ubuf);
+#else
+	errno = ENOSYS;
+	return -1;
+#endif
 }
 
 pid_t getsid(pid_t pid){
@@ -961,7 +1029,16 @@ int select(int n, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct t
 }
 
 int poll(struct pollfd *ufds, nfds_t nfds, int timeout){
+#if defined(__NR_poll)
 	return _pure_syscall(__NR_poll,ufds,nfds,timeout);
+#else
+	if (timeout < 0)
+		return  _pure_syscall(__NR_ppoll,fds,nfds, NULL, NULL);
+	else {
+		struct timespec ts = {timeout, 0};
+		return  _pure_syscall(__NR_ppoll,fds,nfds, &ts, NULL);
+	}
+#endif
 }
 
 int pselect(int nfds, fd_set *readfds, fd_set *writefds,
@@ -1439,6 +1516,12 @@ int unlinkat(int dirfd, const char *pathname, int flags){
 #ifdef __NR_renameat
 int renameat(int olddirfd, const char *oldpath,int newdirfd, const char *newpath){
 	return _pure_syscall(__NR_renameat,olddirfd,oldpath,newdirfd,newpath);
+}
+#endif
+
+#ifdef __NR_renameat2
+int renameat2(int olddirfd, const char *oldpath,int newdirfd, const char *newpath, unsigned int flags){
+	return _pure_syscall(__NR_renameat2,olddirfd,oldpath,newdirfd,newpath,flags);
 }
 #endif
 
