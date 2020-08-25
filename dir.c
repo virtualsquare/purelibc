@@ -120,35 +120,25 @@ struct dirent64 *readdir64(DIR *dir){
 }
 
 int dirfd(DIR *dir){
-	//if (dir) 
-		return dir->fd;
-	//else
-		//return -1;
+	return dir->fd;
 }
 
 void rewinddir(DIR *dir){
-	//if (dir) {
-		lseek(dir->fd,0,SEEK_SET);
-		dir->bufsize=dir->bufpos=0;
-	//}
+	lseek(dir->fd,0,SEEK_SET);
+	dir->bufsize=dir->bufpos=0;
 }
 
-void seekdir(DIR *dir, off_t offset){
-	//if (dir) {
-		lseek(dir->fd,offset,SEEK_SET);
-		dir->bufsize=dir->bufpos=0;
-	//}
+void seekdir(DIR *dir, long int offset){
+	lseek(dir->fd,offset,SEEK_SET);
+	dir->bufsize=dir->bufpos=0;
 }
 
-off_t telldir(DIR *dir){
-	//if (dir) {
-		off_t pos = lseek(dir->fd,0,SEEK_CUR);
-		if (pos != (off_t) -1)
-			return -1;
-		else
-			return pos + dir->bufpos;
-	//} else
-		//return -1;
+long int telldir(DIR *dir){
+	off_t pos = lseek(dir->fd,0,SEEK_CUR);
+	if (pos != (off_t) -1)
+		return -1;
+	else
+		return pos + dir->bufpos;
 }
 
 #define NL_SIZE_INCR 100

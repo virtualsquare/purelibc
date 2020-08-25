@@ -789,7 +789,17 @@ void _Exit(int status){
 }
 
 pid_t fork(void){
+#if defined(__ia64__)
+	int child_tid;
+	if (_pure_syscall(__NR_clone2,
+				CLONE_CHILD_SETTID | CLONE_CHILD_CLEARTID | SIGCHLD,
+				NULL, 0, NULL, &child_tid, NULL) < 0)
+		return -1;
+	else
+		return child_tid;
+#else
 	return _pure_syscall(__NR_fork);
+#endif
 }
 
 pid_t vfork(void){
@@ -827,11 +837,15 @@ long int ptrace (enum __ptrace_request request, ...){
 }
 
 int nice(int inc){
-#if ! defined(__x86_64__)
-	return _pure_syscall(__NR_nice,inc);
-#else
+#if defined(__x86_64__) || defined(__ia64__) || \
+	defined(__alpha__) || defined(__s390x__) || \
+	(defined(__mips__) && defined(__LP64__)) || \
+	(defined(__arm__) && defined(__LP64__)) || \
+	defined(__riscv__)
 	int nice = _pure_syscall(__NR_getpriority,PRIO_PROCESS,0);
 	return _pure_syscall(__NR_setpriority,PRIO_PROCESS,0,nice + inc);
+#else
+	return _pure_syscall(__NR_nice,inc);
 #endif
 }
 
@@ -935,11 +949,15 @@ int setgroups(size_t size, const gid_t *list){
 	return _pure_syscall(__NR_setgroups,size,list);
 }
 
-#if defined(__x86_64__)
-#define __NR__newselect __NR_select
-#endif
 int select(int n, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout){
+#if defined(__x86_64__) || defined(__s390x__) || \
+	defined(__alpha__) || defined(__ia64__) || \
+	(defined(__arm__) && defined(__LP64__)) || \
+	defined(__riscv__)
+	return _pure_syscall(__NR_select,n,readfds,writefds,exceptfds,timeout);
+#else
 	return _pure_syscall(__NR__newselect,n,readfds,writefds,exceptfds,timeout);
+#endif
 }
 
 int poll(struct pollfd *ufds, nfds_t nfds, int timeout){
