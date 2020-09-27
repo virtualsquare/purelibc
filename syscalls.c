@@ -1,25 +1,25 @@
 /*   This is part of pure_libc (a project related to ViewOS and Virtual Square)
- *  
+ *
  *   syscalls.c: syscall mgmt
- *   
+ *
  *   Copyright 2006-2020 Renzo Davoli University of Bologna - Italy
  *   Copyright 2005 Andrea Gasparini University of Bologna - Italy
- *   
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- * 
+ *
  * The GNU C Library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public
  * License along with the GNU C Library; if not, write to the Free
  * Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA.
- */ 
+ */
 
 #include <config.h>
 #include <stdarg.h>
@@ -57,6 +57,7 @@
 #include <time.h>
 #include <grp.h>
 #include <limits.h>
+#include <sched.h>
 #include <stdlib.h>
 #include "purelibc.h"
 
@@ -348,14 +349,18 @@ int statx(int dirfd, const char *pathname, int flags,
 
 int mknod(const char *pathname, mode_t mode, dev_t dev) {
 #if defined(__NR_mknodat) && ! defined(__NR_mknod)
-	return _pure_syscall(__NR_mknod,pathname,mode,dev);
-#else
 	return _pure_syscall(__NR_mknodat,AT_FDCWD,pathname,mode,dev);
+#else
+	return _pure_syscall(__NR_mknod,pathname,mode,dev);
 #endif
 }
 
 int __xmknod (int ver, const char *path, mode_t mode, dev_t *dev) {
+#if defined(__NR_mknodat) && ! defined(__NR_mknod)
+	return _pure_syscall(__NR_mknodat,AT_FDCWD,path,mode,dev);
+#else
 	return _pure_syscall(__NR_mknod,path,mode,dev);
+#endif
 }
 
 int access(const char* pathname,int mode){
@@ -372,17 +377,17 @@ int __access(const char* pathname,int mode){
 
 ssize_t readlink(const char* pathname,char* buf, size_t bufsize){
 #if defined(__NR_readlinkat) && ! defined(__NR_readlink)
-	return _pure_syscall(__NR_readlink,pathname,buf,bufsize);
-#else
 	return _pure_syscall(__NR_readlinkat,AT_FDCWD,pathname,buf,bufsize);
+#else
+	return _pure_syscall(__NR_readlink,pathname,buf,bufsize);
 #endif
 }
 
 int mkdir(const char* pathname,mode_t mode){
 #if defined(__NR_mkdirat) && ! defined(__NR_mkdir)
-	return _pure_syscall(__NR_mkdir,pathname,mode);
-#else
 	return _pure_syscall(__NR_mkdirat,AT_FDCWD,pathname,mode);
+#else
+	return _pure_syscall(__NR_mkdir,pathname,mode);
 #endif
 }
 
@@ -468,7 +473,7 @@ int fchdir(int fd) {
 
 int utimes(const char* pathname,const struct timeval tv[2]){
 #if defined(__NR_utimensat) && ! defined(__NR_utimes)
-	struct timespec times[2] = {
+	struct timespec ts[2] = {
 		{tv[0].tv_sec, tv[0].tv_usec * 1000},
 		{tv[1].tv_sec, tv[1].tv_usec * 1000}};
 	return _pure_syscall(__NR_utimensat, AT_FDCWD, pathname, ts, 0);
@@ -514,7 +519,7 @@ ssize_t pread(int fs,void* buf, size_t count, __off_t offset){
 }
 #endif
 
-#ifdef __NR_pwrite64 
+#ifdef __NR_pwrite64
 ssize_t pwrite64(int fs,const void* buf, size_t count, __off64_t offset){
 	return _pure_syscall(__NR_pwrite64,fs,buf,count,
 #if defined(__powerpc__) || defined(__arm__)
@@ -554,7 +559,7 @@ ssize_t preadv64(int fs,const struct iovec *iov, int iovcnt, __off64_t offset){
 		rv=totalsize;
 		for (i=0,scan=buf; i<iovcnt && totalsize>0; i++,
 				scan+=iov[i].iov_len,
-				totalsize-=iov[i].iov_len) 
+				totalsize-=iov[i].iov_len)
 			memcpy(iov[i].iov_base, scan, iov[i].iov_len);
 		free(buf);
 	}
@@ -571,7 +576,7 @@ ssize_t pwritev64(int fs,const struct iovec *iov, int iovcnt, __off64_t offset){
 	ssize_t rv=_pure_syscall(__NR_pwritev,fs,iov,iovcnt,
 #ifdef __NR_pwrite64
 #if defined(__powerpc__) || defined(__arm__)
-			0,    
+			0,
 #endif
 			__LONG_LONG_PAIR( (__off_t)(offset>>32),(__off_t)(offset&0xffffffff))
 #else
@@ -911,6 +916,12 @@ pid_t fork(void){
 		return -1;
 	else
 		return child_tid;
+#elif defined(__aarch64__)
+	int child_tid;
+	if (_pure_syscall(__NR_clone, NULL, CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, &child_tid) < 0)
+		return -1;
+	else
+		return child_tid;
 #else
 	return _pure_syscall(__NR_fork);
 #endif
@@ -954,7 +965,7 @@ int nice(int inc){
 #if defined(__x86_64__) || defined(__ia64__) || \
 	defined(__alpha__) || defined(__s390x__) || \
 	(defined(__mips__) && defined(__LP64__)) || \
-	(defined(__arm__) && defined(__LP64__)) || \
+	defined(__aarch64__) || \
 	defined(__riscv__)
 	int nice = _pure_syscall(__NR_getpriority,PRIO_PROCESS,0);
 	return _pure_syscall(__NR_setpriority,PRIO_PROCESS,0,nice + inc);
@@ -1003,7 +1014,7 @@ int setrlimit(__rlimit_resource_t resource, const struct rlimit *rlim){
 	return prlimit(0,resource,rlim,NULL);
 }
 
-int getrlimit(__rlimit_resource_t resource, struct rlimit *rlim){ 
+int getrlimit(__rlimit_resource_t resource, struct rlimit *rlim){
 	return prlimit(0,resource,NULL,rlim);
 }
 #else
@@ -1011,7 +1022,7 @@ int setrlimit(__rlimit_resource_t resource, const struct rlimit *rlim){
 	return _pure_syscall(__NR_setrlimit,resource,rlim);
 }
 
-int getrlimit(__rlimit_resource_t resource, struct rlimit *rlim){ 
+int getrlimit(__rlimit_resource_t resource, struct rlimit *rlim){
 	return _pure_syscall(__NR_getrlimit,resource,rlim);
 }
 #endif
@@ -1068,30 +1079,6 @@ int setgroups(size_t size, const gid_t *list){
 	return _pure_syscall(__NR_setgroups,size,list);
 }
 
-int select(int n, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout){
-#if defined(__x86_64__) || defined(__s390x__) || \
-	defined(__alpha__) || defined(__ia64__) || \
-	(defined(__arm__) && defined(__LP64__)) || \
-	defined(__riscv__)
-	return _pure_syscall(__NR_select,n,readfds,writefds,exceptfds,timeout);
-#else
-	return _pure_syscall(__NR__newselect,n,readfds,writefds,exceptfds,timeout);
-#endif
-}
-
-int poll(struct pollfd *ufds, nfds_t nfds, int timeout){
-#if defined(__NR_poll)
-	return _pure_syscall(__NR_poll,ufds,nfds,timeout);
-#else
-	if (timeout < 0)
-		return  _pure_syscall(__NR_ppoll,fds,nfds, NULL, NULL);
-	else {
-		struct timespec ts = {timeout, 0};
-		return  _pure_syscall(__NR_ppoll,fds,nfds, &ts, NULL);
-	}
-#endif
-}
-
 int pselect(int nfds, fd_set *readfds, fd_set *writefds,
 		fd_set *exceptfds, const struct timespec *timeout,
 		const sigset_t *sigmask) {
@@ -1104,6 +1091,36 @@ int ppoll(struct pollfd *fds, nfds_t nfds,
 }
 
 #ifdef __NR_epoll_create1
+int select(int n, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout){
+#if defined(__x86_64__) || defined(__s390x__) || \
+	defined(__alpha__) || defined(__ia64__) || \
+	defined(__riscv__)
+	return _pure_syscall(__NR_select,n,readfds,writefds,exceptfds,timeout);
+#elif defined(__aarch64__)
+	if (timeout == NULL)
+		return pselect(n,readfds,writefds,exceptfds,NULL,NULL);
+	else {
+		struct timespec ts = {timeout->tv_sec, timeout->tv_usec * 1000};
+		return pselect(n,readfds,writefds,exceptfds,&ts,NULL);
+	}
+#else
+	return _pure_syscall(__NR__newselect,n,readfds,writefds,exceptfds,timeout);
+#endif
+}
+
+int poll(struct pollfd *ufds, nfds_t nfds, int timeout){
+#if defined(__NR_poll)
+	return _pure_syscall(__NR_poll,ufds,nfds,timeout);
+#else
+	if (timeout < 0)
+		return  _pure_syscall(__NR_ppoll,ufds,nfds, NULL, NULL);
+	else {
+		struct timespec ts = {timeout, 0};
+		return  _pure_syscall(__NR_ppoll,ufds,nfds, &ts, NULL);
+	}
+#endif
+}
+
 int epoll_create1(int flags) {
 	return _pure_syscall(__NR_epoll_create1, flags);
 }
@@ -1185,7 +1202,7 @@ int statfs64(const char *path, struct statfs64 *buf){
 int fstatfs64(int fd, struct statfs64 *buf){
 	return _pure_syscall(__NR_fstatfs64,fd,sizeof(struct statfs64), buf);
 }
-#endif 
+#endif
 
 int getitimer(__itimer_which_t which, struct itimerval *value){
 	return _pure_syscall(__NR_getitimer,which,value);
@@ -1235,6 +1252,7 @@ int adjtimex(struct timex *buf){
 	return _pure_syscall(__NR_adjtimex,buf);
 }
 
+#ifdef __NR_sysfs
 int sysfs(int option,...){
 	switch (option) {
 		case 1: {
@@ -1262,6 +1280,7 @@ int sysfs(int option,...){
 						 return -1;
 	}
 }
+#endif
 
 int setfsuid(uid_t fsuid){
 	return _pure_syscall(__NR_setfsuid,fsuid);
@@ -1284,7 +1303,7 @@ char *getcwd(char *buf, size_t size){
 	if (size == 0 && buf==NULL) {
 		size=PATH_MAX;
 		buf=malloc(size);
-		if (buf==NULL) 
+		if (buf==NULL)
 			return NULL;
 		else {
 			rsize=_pure_syscall(__NR_getcwd,buf,size);
@@ -1298,7 +1317,7 @@ char *getcwd(char *buf, size_t size){
 		}
 	} else {
 		rsize=_pure_syscall(__NR_getcwd,buf,size);
-		if (rsize>=0) 
+		if (rsize>=0)
 			return buf;
 		else
 			return NULL;
@@ -1676,7 +1695,7 @@ long int syscall(long int n,...)
 	arg4=va_arg(ap, long int);
 	arg5=va_arg(ap, long int);
 	va_end(ap);
-	/* in case of pre-init call: emergency initialization */ 
+	/* in case of pre-init call: emergency initialization */
 	if (__builtin_expect(_pure_native_syscall == NULL,0))
 		init();
 	if (__builtin_expect(_pure_syscall == syscall,0))
