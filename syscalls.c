@@ -65,7 +65,7 @@
 sfun _pure_syscall = syscall;
 sfun _pure_native_syscall;
 
-#if __WORDSIZE != 64
+#if defined(__NR_mmap2)
 static int _pageshift()
 {
 	static int ps=0;
@@ -209,7 +209,7 @@ int dup3(int oldfd, int newfd, int flags){
 #define __NR_FSTATAT64 __NR_newfstatat
 #endif
 
-#if __WORDSIZE == 64
+#if __WORDSIZE == 64 || defined(__ILP32__)
 # if defined(__NR_FSTATAT64) && ! defined(__NR_stat)
 #  define __USE_FSTATAT64
 # endif
@@ -1193,12 +1193,14 @@ int fstatfs(int fd, struct statfs *buf){
 	return _pure_syscall(__NR_fstatfs,fd,buf);
 }
 
-#if __WORDSIZE == 32
+#ifdef __NR_statfs64
 /* LIBC add an extra arg: the buf size */
 int statfs64(const char *path, struct statfs64 *buf){
 	return _pure_syscall(__NR_statfs64,path,sizeof(struct statfs64), buf);
 }
+#endif 
 
+#ifdef __NR_fstatfs64
 int fstatfs64(int fd, struct statfs64 *buf){
 	return _pure_syscall(__NR_fstatfs64,fd,sizeof(struct statfs64), buf);
 }
@@ -1431,14 +1433,14 @@ int fstatvfs(int fd, struct statvfs *buf){
 void *mmap(void  *start, size_t length, int prot, int flags, int fd,
 		       off_t offset)
 {
-#if __WORDSIZE != 64
+#if defined(__NR_mmap2)
 		return (void *) _pure_syscall(__NR_mmap2,start,length,prot,flags,fd,offset>> _pageshift());
 #else
 		return (void *) _pure_syscall(__NR_mmap,start,length,prot,flags,fd,offset);
 #endif
 }
 
-#if __WORDSIZE != 64
+#if defined(__NR_mmap2)
 void *mmap2(void  *start, size_t length, int prot, int flags, int fd,
 		       off_t pgoffset)
 {
