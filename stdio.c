@@ -28,6 +28,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <unistd.h>
+#include <limits.h>
 #include <dlfcn.h>
 #include <pthread.h>
 
@@ -279,7 +280,7 @@ int getchar (void)
 
 char *gets(char *s)
 {
-	return fgets(s,(-1)>>1,stdin);
+	return fgets(s, INT_MAX, stdin);
 }
 
 int puts(const char *s)

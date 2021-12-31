@@ -2,7 +2,7 @@
  *
  *   syscalls.c: syscall mgmt
  *
- *   Copyright 2006-2020 Renzo Davoli University of Bologna - Italy
+ *   Copyright 2006-2021 Renzo Davoli University of Bologna - Italy
  *   Copyright 2005 Andrea Gasparini University of Bologna - Italy
  *
  * This program is free software; you can redistribute it and/or
@@ -202,6 +202,8 @@ int dup3(int oldfd, int newfd, int flags){
  * myself. The following not-so-readable stuff takes care of calling the
  * correct 64-bit function on both 32 bit and 64 bit architectures.*/
 
+/* update: glibc 2.33 has a simpler API, no more __ functions */
+
 #ifdef __NR_fstatat64
 #define __NR_FSTATAT64 __NR_fstatat64
 #endif
@@ -248,6 +250,79 @@ static void arch_stat64_2_stat(struct arch_stat64 *from, struct stat *to)
 	return;
 }
 
+#if __GNUC_PREREQ (2,33)
+int stat(const char* pathname, struct stat* buf_stat)
+{
+	IFNOT64(struct stat64 *buf_stat64 = alloca(sizeof(struct stat64));)
+		int rv;
+
+#ifdef __USE_FSTATAT64
+	rv = _pure_syscall(__NR_FSTATAT64, AT_FDCWD, pathname, MAKE_NAME(buf_, arch_stat64), 0);
+#else
+	rv = _pure_syscall(MAKE_NAME(__NR_, arch_stat64), pathname, MAKE_NAME(buf_, arch_stat64));
+#endif
+	if (rv >= 0)
+		arch_stat64_2_stat(MAKE_NAME(buf_, arch_stat64), buf_stat);
+
+	return rv;
+}
+
+int lstat(const char* pathname, struct stat* buf_stat)
+{
+	IFNOT64(struct stat64 *buf_stat64 = alloca(sizeof(struct stat64));)
+		int rv;
+
+#ifdef __USE_FSTATAT64
+	rv = _pure_syscall(__NR_FSTATAT64, AT_FDCWD, pathname, MAKE_NAME(buf_, arch_stat64), AT_SYMLINK_NOFOLLOW);
+#else
+	rv = _pure_syscall(MAKE_NAME(__NR_l, arch_stat64), pathname, MAKE_NAME(buf_, arch_stat64));
+#endif
+	if (rv >= 0)
+		arch_stat64_2_stat(MAKE_NAME(buf_, arch_stat64), buf_stat);
+
+	return rv;
+}
+
+int fstat(int fildes, struct stat* buf_stat)
+{
+	IFNOT64(struct stat64 *buf_stat64 = alloca(sizeof(struct stat64));)
+		int rv;
+	rv = _pure_syscall(MAKE_NAME(__NR_f, arch_stat64), fildes, MAKE_NAME(buf_, arch_stat64));
+	if (rv >= 0)
+		arch_stat64_2_stat(MAKE_NAME(buf_, arch_stat64), buf_stat);
+
+	return rv;
+}
+
+int stat64(const char* pathname,struct stat64* buf){
+#ifdef __USE_FSTATAT64
+	return _pure_syscall(__NR_FSTATAT64, AT_FDCWD, pathname, buf, 0);
+#else
+	return _pure_syscall(MAKE_NAME(__NR_, arch_stat64), pathname, buf);
+#endif
+}
+
+int lstat64(const char* pathname,struct stat64* buf){
+#ifdef __USE_FSTATAT64
+  return _pure_syscall(__NR_FSTATAT64, AT_FDCWD, pathname, buf, AT_SYMLINK_NOFOLLOW);
+#else
+  return _pure_syscall(MAKE_NAME(__NR_l, arch_stat64), pathname, buf);
+#endif
+}
+
+int xstat64 (int fildes, struct stat64 *buf){
+  return _pure_syscall(MAKE_NAME(__NR_f, arch_stat64), fildes, buf);
+}
+
+int mknod(const char *pathname, mode_t mode, dev_t dev) {
+#if defined(__NR_mknodat) && ! defined(__NR_mknod)
+	return _pure_syscall(__NR_mknodat,AT_FDCWD,pathname,mode,dev);
+#else
+	return _pure_syscall(__NR_mknod,pathname,mode,dev);
+#endif
+}
+
+#else
 int __xstat(int ver, const char* pathname, struct stat* buf_stat)
 {
 	IFNOT64(struct stat64 *buf_stat64 = alloca(sizeof(struct stat64));)
@@ -339,21 +414,30 @@ int __lxstat64(int ver,const char* pathname,struct stat64* buf){
 int __fxstat64 (int ver, int fildes, struct stat64 *buf){
 	return _pure_syscall(MAKE_NAME(__NR_f, arch_stat64), fildes, buf);
 }
-/* end of unreadable code */
-#ifdef __NR_statx
-int statx(int dirfd, const char *pathname, int flags,
-		unsigned int mask, struct statx *statxbuf) {
-	return _pure_syscall(__NR_statx, dirfd, pathname, flags, mask, statxbuf);
-}
-#endif
 
-int mknod(const char *pathname, mode_t mode, dev_t dev) {
-#if defined(__NR_mknodat) && ! defined(__NR_mknod)
-	return _pure_syscall(__NR_mknodat,AT_FDCWD,pathname,mode,dev);
-#else
-	return _pure_syscall(__NR_mknod,pathname,mode,dev);
-#endif
+#ifdef __NR_FSTATAT64
+int __fxstatat64 (int ver, int dirfd, const char *pathname, struct stat64 *buf, int flags){
+	return _pure_syscall(__NR_FSTATAT64,dirfd,pathname,buf,flags);
 }
+int __fxstatat(int ver, int fildes, const char *pathname, struct stat* buf_stat,int flags)
+{
+	IFNOT64(struct stat64 *buf_stat64 = alloca(sizeof(struct stat64));)
+	int rv;
+	switch(ver)
+	{
+		case _STAT_VER_LINUX:
+			rv = _pure_syscall(__NR_FSTATAT64, fildes, pathname, MAKE_NAME(buf_, arch_stat64), flags);
+			break;
+
+		default:
+			_pure_debug_printf("*** BUG! *** __fxstatat can't manage version %d!\n", ver);
+			abort();
+	}
+	if (rv >= 0)
+		arch_stat64_2_stat(MAKE_NAME(buf_, arch_stat64), buf_stat);
+	return rv;
+}
+#endif
 
 int __xmknod (int ver, const char *path, mode_t mode, dev_t *dev) {
 #if defined(__NR_mknodat) && ! defined(__NR_mknod)
@@ -362,6 +446,22 @@ int __xmknod (int ver, const char *path, mode_t mode, dev_t *dev) {
 	return _pure_syscall(__NR_mknod,path,mode,dev);
 #endif
 }
+
+/* end of unreadable code */
+#endif
+
+#ifdef __NR_FSTATAT64
+int fstatat(int dirfd, const char *pathname, struct stat *buf, int flags) {
+	return _pure_syscall(__NR_FSTATAT64,dirfd,pathname,buf,flags);
+}
+#endif
+
+#ifdef __NR_statx
+int statx(int dirfd, const char *pathname, int flags,
+		unsigned int mask, struct statx *statxbuf) {
+	return _pure_syscall(__NR_statx, dirfd, pathname, flags, mask, statxbuf);
+}
+#endif
 
 int access(const char* pathname,int mode){
 #if defined(__NR_faccessat) && ! defined(__NR_access)
@@ -1543,33 +1643,6 @@ int fchownat(int dirfd, const char *pathname, uid_t owner, gid_t group, int flag
 #ifdef __NR_futimesat
 int futimesat(int dirfd, const char *pathname, const struct timeval times[2]) {
 	return _pure_syscall(__NR_futimesat,dirfd,pathname,times);
-}
-#endif
-
-#ifdef __NR_FSTATAT64
-int fstatat(int dirfd, const char *pathname, struct stat *buf, int flags) {
-	return _pure_syscall(__NR_FSTATAT64,dirfd,pathname,buf,flags);
-}
-int __fxstatat64 (int ver, int dirfd, const char *pathname, struct stat64 *buf, int flags){
-	return _pure_syscall(__NR_FSTATAT64,dirfd,pathname,buf,flags);
-}
-int __fxstatat(int ver, int fildes, const char *pathname, struct stat* buf_stat,int flags)
-{
-	IFNOT64(struct stat64 *buf_stat64 = alloca(sizeof(struct stat64));)
-	int rv;
-	switch(ver)
-	{
-		case _STAT_VER_LINUX:
-			rv = _pure_syscall(__NR_FSTATAT64, fildes, pathname, MAKE_NAME(buf_, arch_stat64), flags);
-			break;
-
-		default:
-			_pure_debug_printf("*** BUG! *** __fxstatat can't manage version %d!\n", ver);
-			abort();
-	}
-	if (rv >= 0)
-		arch_stat64_2_stat(MAKE_NAME(buf_, arch_stat64), buf_stat);
-	return rv;
 }
 #endif
 
