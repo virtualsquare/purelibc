@@ -966,7 +966,7 @@ int nice(int inc){
 	defined(__alpha__) || defined(__s390x__) || \
 	(defined(__mips__) && defined(__LP64__)) || \
 	defined(__aarch64__) || \
-	defined(__riscv__)
+	(defined(__riscv) && __riscv_xlen==64)
 	int nice = _pure_syscall(__NR_getpriority,PRIO_PROCESS,0);
 	return _pure_syscall(__NR_setpriority,PRIO_PROCESS,0,nice + inc);
 #else
@@ -1094,7 +1094,7 @@ int ppoll(struct pollfd *fds, nfds_t nfds,
 int select(int n, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout){
 #if defined(__x86_64__) || defined(__s390x__) || \
 	defined(__alpha__) || defined(__ia64__) || \
-	defined(__riscv__)
+	(defined(__riscv) && __riscv_xlen==64)
 	return _pure_syscall(__NR_select,n,readfds,writefds,exceptfds,timeout);
 #elif defined(__aarch64__)
 	if (timeout == NULL)
