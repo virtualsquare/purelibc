@@ -310,7 +310,7 @@ int lstat64(const char* pathname,struct stat64* buf){
 #endif
 }
 
-int xstat64 (int fildes, struct stat64 *buf){
+int fstat64 (int fildes, struct stat64 *buf){
   return _pure_syscall(MAKE_NAME(__NR_f, arch_stat64), fildes, buf);
 }
 
