@@ -1016,7 +1016,7 @@ pid_t fork(void){
 		return -1;
 	else
 		return child_tid;
-#elif defined(__aarch64__)
+#elif defined(__aarch64__) || defined(__riscv) && __riscv_xlen==64
 	int child_tid;
 	if (_pure_syscall(__NR_clone, NULL, CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, &child_tid) < 0)
 		return -1;
@@ -1193,10 +1193,9 @@ int ppoll(struct pollfd *fds, nfds_t nfds,
 #ifdef __NR_epoll_create1
 int select(int n, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout){
 #if defined(__x86_64__) || defined(__s390x__) || \
-	defined(__alpha__) || defined(__ia64__) || \
-	(defined(__riscv) && __riscv_xlen==64)
+	defined(__alpha__) || defined(__ia64__)
 	return _pure_syscall(__NR_select,n,readfds,writefds,exceptfds,timeout);
-#elif defined(__aarch64__)
+#elif defined(__aarch64__) || defined(__riscv) && __riscv_xlen==64
 	if (timeout == NULL)
 		return pselect(n,readfds,writefds,exceptfds,NULL,NULL);
 	else {
@@ -1298,7 +1297,7 @@ int fstatfs(int fd, struct statfs *buf){
 int statfs64(const char *path, struct statfs64 *buf){
 	return _pure_syscall(__NR_statfs64,path,sizeof(struct statfs64), buf);
 }
-#endif 
+#endif
 
 #ifdef __NR_fstatfs64
 int fstatfs64(int fd, struct statfs64 *buf){
