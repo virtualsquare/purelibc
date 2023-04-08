@@ -501,7 +501,7 @@ int rmdir(const char* pathname){
 
 int chmod(const char* pathname,mode_t mode){
 #if defined(__NR_fchownat) && ! defined(__NR_chmod)
-	return _pure_syscall(__NR_fchownat,AT_FDCWD,pathname,mode,0);
+	return _pure_syscall(__NR_fchmodat,AT_FDCWD,pathname,mode,0);
 #else
 	return _pure_syscall(__NR_chmod,pathname,mode);
 #endif
