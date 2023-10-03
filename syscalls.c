@@ -45,6 +45,7 @@
 #include <sys/timeb.h>
 #include <sys/mman.h>
 #include <sys/epoll.h>
+#include <sys/sysmacros.h>
 #include <bits/wordsize.h>
 #include <utime.h>
 #include <stdarg.h>
@@ -211,6 +212,37 @@ int dup3(int oldfd, int newfd, int flags){
 #define __NR_FSTATAT64 __NR_newfstatat
 #endif
 
+#if defined(__NR_statx) && ! defined(__NR_FSTATAT64)
+	#define __NR_FSTATAT64 __NR_statx
+int __purelibc_newstat64(int dirfd, const char *restrict pathname,
+		struct stat *restrict statbuf, int flags) {
+  struct statx buf[1];
+  int rv = _pure_syscall(__NR_statx, dirfd, pathname, flags, STATX_BASIC_STATS, buf);
+  if (rv == 0) {
+    statbuf->st_dev = makedev(buf->stx_dev_major, buf->stx_dev_minor);
+    statbuf->st_ino = buf->stx_ino;
+    statbuf->st_mode = buf->stx_mode;
+    statbuf->st_nlink = buf->stx_nlink;
+    statbuf->st_uid = buf->stx_uid;
+    statbuf->st_gid = buf->stx_gid;
+    statbuf->st_rdev = makedev(buf->stx_rdev_major, buf->stx_rdev_minor);
+    statbuf->st_size = buf->stx_size;
+    statbuf->st_blksize = buf->stx_blksize;
+    statbuf->st_blocks = buf->stx_blocks;
+    statbuf->st_atim.tv_sec = buf->stx_atime.tv_sec;
+    statbuf->st_atim.tv_nsec = buf->stx_atime.tv_nsec;
+    statbuf->st_mtim.tv_sec = buf->stx_mtime.tv_sec;
+    statbuf->st_mtim.tv_nsec = buf->stx_mtime.tv_nsec;
+    statbuf->st_ctim.tv_sec = buf->stx_ctime.tv_sec;
+    statbuf->st_ctim.tv_nsec = buf->stx_ctime.tv_nsec;
+  }
+  return rv;
+}
+#else
+	#define __purelibc_newstat64(dirfd, pathname, statbuf, flags) \
+		_pure_syscall(__NR_FSTATAT64, (dirfd), (pathname), (statbuf), (flags))
+#endif
+
 #if __WORDSIZE == 64 || defined(__ILP32__)
 # if defined(__NR_FSTATAT64) && ! defined(__NR_stat)
 #  define __USE_NEWSTAT64_STAT
@@ -263,7 +295,7 @@ int stat(const char* pathname, struct stat* buf_stat)
 		int rv;
 
 #ifdef __USE_NEWSTAT64_STAT
-	rv = _pure_syscall(__NR_FSTATAT64, AT_FDCWD, pathname, MAKE_NAME(buf_, arch_stat64), 0);
+	rv = __purelibc_newstat64(AT_FDCWD, pathname, MAKE_NAME(buf_, arch_stat64), 0);
 #else
 	rv = _pure_syscall(MAKE_NAME(__NR_, arch_stat64), pathname, MAKE_NAME(buf_, arch_stat64));
 #endif
@@ -279,7 +311,7 @@ int lstat(const char* pathname, struct stat* buf_stat)
 		int rv;
 
 #ifdef __USE_NEWSTAT64_STAT
-	rv = _pure_syscall(__NR_FSTATAT64, AT_FDCWD, pathname, MAKE_NAME(buf_, arch_stat64), AT_SYMLINK_NOFOLLOW);
+	rv = __purelibc_newstat64(AT_FDCWD, pathname, MAKE_NAME(buf_, arch_stat64), AT_SYMLINK_NOFOLLOW);
 #else
 	rv = _pure_syscall(MAKE_NAME(__NR_l, arch_stat64), pathname, MAKE_NAME(buf_, arch_stat64));
 #endif
@@ -294,7 +326,7 @@ int fstat(int fildes, struct stat* buf_stat)
 	IFNOT64(struct stat64 *buf_stat64 = alloca(sizeof(struct stat64)));
 		int rv;
 #ifdef __USE_NEWSTAT64_FSTAT
-	rv = _pure_syscall(__NR_FSTATAT64, fildes, "", MAKE_NAME(buf_, arch_stat64), AT_EMPTY_PATH);
+	rv = __purelibc_newstat64(fildes, "", MAKE_NAME(buf_, arch_stat64), AT_EMPTY_PATH);
 #else
 	rv = _pure_syscall(MAKE_NAME(__NR_f, arch_stat64), fildes, MAKE_NAME(buf_, arch_stat64));
 #endif
@@ -306,7 +338,7 @@ int fstat(int fildes, struct stat* buf_stat)
 
 int stat64(const char* pathname,struct stat64* buf){
 #ifdef __USE_NEWSTAT64_STAT
-	return _pure_syscall(__NR_FSTATAT64, AT_FDCWD, pathname, buf, 0);
+	return __purelibc_newstat64(AT_FDCWD, pathname, buf, 0);
 #else
 	return _pure_syscall(MAKE_NAME(__NR_, arch_stat64), pathname, buf);
 #endif
@@ -314,15 +346,15 @@ int stat64(const char* pathname,struct stat64* buf){
 
 int lstat64(const char* pathname,struct stat64* buf){
 #ifdef __USE_NEWSTAT64_STAT
-  return _pure_syscall(__NR_FSTATAT64, AT_FDCWD, pathname, buf, AT_SYMLINK_NOFOLLOW);
+  return __purelibc_newstat64(AT_FDCWD, pathname, buf, AT_SYMLINK_NOFOLLOW);
 #else
   return _pure_syscall(MAKE_NAME(__NR_l, arch_stat64), pathname, buf);
 #endif
 }
 
 int fstat64 (int fildes, struct stat64 *buf){
-#ifdef __USE_NEWSTAT64_FTAT
-  return _pure_syscall(__NR_FSTATAT64, fildes, "", buf, AT_EMPTY_PATH);
+#ifdef __USE_NEWSTAT64_FSTAT
+  return __purelibc_newstat64(fildes, "", buf, AT_EMPTY_PATH);
 #else
   return _pure_syscall(MAKE_NAME(__NR_f, arch_stat64), fildes, buf);
 #endif
@@ -346,7 +378,7 @@ int __xstat(int ver, const char* pathname, struct stat* buf_stat)
 	{
 		case _STAT_VER_LINUX:
 #ifdef __USE_NEWSTAT64_STAT
-			rv = _pure_syscall(__NR_FSTATAT64, AT_FDCWD, pathname, MAKE_NAME(buf_, arch_stat64), 0);
+			rv = __purelibc_newstat64(AT_FDCWD, pathname, MAKE_NAME(buf_, arch_stat64), 0);
 #else
 			rv = _pure_syscall(MAKE_NAME(__NR_, arch_stat64), pathname, MAKE_NAME(buf_, arch_stat64));
 #endif
@@ -372,7 +404,7 @@ int __lxstat(int ver, const char* pathname, struct stat* buf_stat)
 	{
 		case _STAT_VER_LINUX:
 #ifdef __USE_NEWSTAT64_STAT
-			rv = _pure_syscall(__NR_FSTATAT64, AT_FDCWD, pathname, MAKE_NAME(buf_, arch_stat64), AT_SYMLINK_NOFOLLOW);
+			rv = __purelibc_newstat64(AT_FDCWD, pathname, MAKE_NAME(buf_, arch_stat64), AT_SYMLINK_NOFOLLOW);
 #else
 			rv = _pure_syscall(MAKE_NAME(__NR_l, arch_stat64), pathname, MAKE_NAME(buf_, arch_stat64));
 #endif
@@ -397,7 +429,7 @@ int __fxstat(int ver, int fildes, struct stat* buf_stat)
 	{
 		case _STAT_VER_LINUX:
 #ifdef __USE_NEWSTAT64_FSTAT
-			rv = _pure_syscall(__NR_FSTATAT64, fildes, "", MAKE_NAME(buf_, arch_stat64), AT_EMPTY_PATH);
+			rv = __purelibc_newstat64(fildes, "", MAKE_NAME(buf_, arch_stat64), AT_EMPTY_PATH);
 #else
 			rv = _pure_syscall(MAKE_NAME(__NR_f, arch_stat64), fildes, MAKE_NAME(buf_, arch_stat64));
 #endif
@@ -415,7 +447,7 @@ int __fxstat(int ver, int fildes, struct stat* buf_stat)
 
 int __xstat64(int ver,const char* pathname,struct stat64* buf){
 #ifdef __USE_NEWSTAT64_STAT
-	return _pure_syscall(__NR_FSTATAT64, AT_FDCWD, pathname, buf, 0);
+	return __purelibc_newstat64(AT_FDCWD, pathname, buf, 0);
 #else
 	return _pure_syscall(MAKE_NAME(__NR_, arch_stat64), pathname, buf);
 #endif
@@ -423,7 +455,7 @@ int __xstat64(int ver,const char* pathname,struct stat64* buf){
 
 int __lxstat64(int ver,const char* pathname,struct stat64* buf){
 #ifdef __USE_NEWSTAT64_STAT
-	return _pure_syscall(__NR_FSTATAT64, AT_FDCWD, pathname, buf,	AT_SYMLINK_NOFOLLOW);
+	return __purelibc_newstat64(AT_FDCWD, pathname, buf,	AT_SYMLINK_NOFOLLOW);
 #else
 	return _pure_syscall(MAKE_NAME(__NR_l, arch_stat64), pathname, buf);
 #endif
@@ -431,7 +463,7 @@ int __lxstat64(int ver,const char* pathname,struct stat64* buf){
 
 int __fxstat64 (int ver, int fildes, struct stat64 *buf){
 #ifdef __USE_NEWSTAT64_FSTAT
-	return _pure_syscall(__NR_FSTATAT64, fildes, "", buf,	AT_EMPTY_PATH);
+	return __purelibc_newstat64(fildes, "", buf,	AT_EMPTY_PATH);
 #else
 	return _pure_syscall(MAKE_NAME(__NR_f, arch_stat64), fildes, buf);
 #endif
@@ -439,7 +471,7 @@ int __fxstat64 (int ver, int fildes, struct stat64 *buf){
 
 #ifdef __NR_FSTATAT64
 int __fxstatat64 (int ver, int dirfd, const char *pathname, struct stat64 *buf, int flags){
-	return _pure_syscall(__NR_FSTATAT64,dirfd,pathname,buf,flags);
+	return __purelibc_newstat64(dirfd,pathname,buf,flags);
 }
 int __fxstatat(int ver, int fildes, const char *pathname, struct stat* buf_stat,int flags)
 {
@@ -448,7 +480,7 @@ int __fxstatat(int ver, int fildes, const char *pathname, struct stat* buf_stat,
 	switch(ver)
 	{
 		case _STAT_VER_LINUX:
-			rv = _pure_syscall(__NR_FSTATAT64, fildes, pathname, MAKE_NAME(buf_, arch_stat64), flags);
+			rv = __purelibc_newstat64(fildes, pathname, MAKE_NAME(buf_, arch_stat64), flags);
 			break;
 
 		default:
@@ -474,7 +506,7 @@ int __xmknod (int ver, const char *path, mode_t mode, dev_t *dev) {
 
 #ifdef __NR_FSTATAT64
 int fstatat(int dirfd, const char *pathname, struct stat *buf, int flags) {
-	return _pure_syscall(__NR_FSTATAT64,dirfd,pathname,buf,flags);
+	return __purelibc_newstat64(dirfd,pathname,buf,flags);
 }
 #endif
 
@@ -634,7 +666,7 @@ ssize_t pread64(int fs,void* buf, size_t count, __off64_t offset){
 #if defined(__powerpc__) || defined(__arm__)
 			0,
 #endif
-			__LONG_LONG_PAIR( (__off_t)(offset>>32),(__off_t)(offset&0xffffffff)));
+			__LONG_LONG_PAIR((__off_t)(offset>>32),(__off_t)(offset&0xffffffff)));
 }
 ssize_t pread(int fs,void* buf, size_t count, __off_t offset){
 	return pread64(fs,buf,count,(__off64_t)offset);
@@ -647,7 +679,7 @@ ssize_t pwrite64(int fs,const void* buf, size_t count, __off64_t offset){
 #if defined(__powerpc__) || defined(__arm__)
 			0,
 #endif
-			__LONG_LONG_PAIR( (__off_t)(offset>>32),(__off_t)(offset&0xffffffff)));
+			__LONG_LONG_PAIR((__off_t)(offset>>32),(__off_t)(offset&0xffffffff)));
 }
 ssize_t pwrite(int fs,const void* buf, size_t count, __off_t offset){
 	return pwrite64(fs,buf,count,(__off64_t)offset);
@@ -661,7 +693,7 @@ ssize_t preadv64(int fs,const struct iovec *iov, int iovcnt, __off64_t offset){
 #if defined(__powerpc__) || defined(__arm__)
 			0,
 #endif
-			__LONG_LONG_PAIR( (__off_t)(offset>>32),(__off_t)(offset&0xffffffff))
+			__LONG_LONG_PAIR((__off_t)(offset>>32),(__off_t)(offset&0xffffffff))
 #else
 			offset
 #endif
@@ -700,7 +732,7 @@ ssize_t pwritev64(int fs,const struct iovec *iov, int iovcnt, __off64_t offset){
 #if defined(__powerpc__) || defined(__arm__)
 			0,
 #endif
-			__LONG_LONG_PAIR( (__off_t)(offset>>32),(__off_t)(offset&0xffffffff))
+			__LONG_LONG_PAIR((__off_t)(offset>>32),(__off_t)(offset&0xffffffff))
 #else
 			offset
 #endif
@@ -1284,7 +1316,7 @@ int truncate64(const char *path, __off64_t length){
 #if defined(__powerpc__)
 			0,
 #endif
-			__LONG_LONG_PAIR( (__off_t)(length>>32),(__off_t)(length&0xffffffff)));
+			__LONG_LONG_PAIR((__off_t)(length>>32),(__off_t)(length&0xffffffff)));
 }
 #endif
 
@@ -1294,7 +1326,7 @@ int ftruncate64(int fd, __off64_t length){
 #if defined(__powerpc__)
 			0,
 #endif
-			__LONG_LONG_PAIR( (__off_t)(length>>32),(__off_t)(length&0xffffffff)));
+			__LONG_LONG_PAIR((__off_t)(length>>32),(__off_t)(length&0xffffffff)));
 }
 #endif
 
