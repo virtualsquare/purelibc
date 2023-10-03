@@ -2,7 +2,7 @@
  *
  *   syscalls.c: syscall mgmt
  *
- *   Copyright 2006-2021 Renzo Davoli University of Bologna - Italy
+ *   Copyright 2006-2023 Renzo Davoli University of Bologna - Italy
  *   Copyright 2005 Andrea Gasparini University of Bologna - Italy
  *
  * This program is free software; you can redistribute it and/or
@@ -1127,8 +1127,8 @@ int getrlimit(__rlimit_resource_t resource, struct rlimit *rlim){
 }
 #endif
 
-int getrusage(int who, struct rusage *usage){
-	return _pure_syscall(__NR_getrusage,usage);
+int getrusage(__rusage_who_t who, struct rusage *usage){
+	return _pure_syscall(__NR_getrusage, who, usage);
 }
 
 #ifdef GETTIMEOFDAY_TZ
