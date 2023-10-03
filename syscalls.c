@@ -213,13 +213,19 @@ int dup3(int oldfd, int newfd, int flags){
 
 #if __WORDSIZE == 64 || defined(__ILP32__)
 # if defined(__NR_FSTATAT64) && ! defined(__NR_stat)
-#  define __USE_FSTATAT64
+#  define __USE_NEWSTAT64_STAT
+# endif
+# if defined(__NR_FSTATAT64) && ! defined(__NR_fstat)
+#  define __USE_NEWSTAT64_FSTAT
 # endif
 #	define arch_stat64 stat
 #	define IFNOT64(x)
 #else
 # if defined(__NR_FSTATAT64) && ! defined(__NR_stat64)
-#  define __USE_FSTATAT64
+#  define __USE_NEWSTAT64_STAT
+# endif
+# if defined(__NR_FSTATAT64) && ! defined(__NR_fstat64)
+#  define __USE_NEWSTAT64_FSTAT
 # endif
 #	define arch_stat64 stat64
 #	define IFNOT64(x) x
@@ -256,7 +262,7 @@ int stat(const char* pathname, struct stat* buf_stat)
 	IFNOT64(struct stat64 *buf_stat64 = alloca(sizeof(struct stat64)));
 		int rv;
 
-#ifdef __USE_FSTATAT64
+#ifdef __USE_NEWSTAT64_STAT
 	rv = _pure_syscall(__NR_FSTATAT64, AT_FDCWD, pathname, MAKE_NAME(buf_, arch_stat64), 0);
 #else
 	rv = _pure_syscall(MAKE_NAME(__NR_, arch_stat64), pathname, MAKE_NAME(buf_, arch_stat64));
@@ -272,7 +278,7 @@ int lstat(const char* pathname, struct stat* buf_stat)
 	IFNOT64(struct stat64 *buf_stat64 = alloca(sizeof(struct stat64)));
 		int rv;
 
-#ifdef __USE_FSTATAT64
+#ifdef __USE_NEWSTAT64_STAT
 	rv = _pure_syscall(__NR_FSTATAT64, AT_FDCWD, pathname, MAKE_NAME(buf_, arch_stat64), AT_SYMLINK_NOFOLLOW);
 #else
 	rv = _pure_syscall(MAKE_NAME(__NR_l, arch_stat64), pathname, MAKE_NAME(buf_, arch_stat64));
@@ -287,7 +293,11 @@ int fstat(int fildes, struct stat* buf_stat)
 {
 	IFNOT64(struct stat64 *buf_stat64 = alloca(sizeof(struct stat64)));
 		int rv;
+#ifdef __USE_NEWSTAT64_FSTAT
+	rv = _pure_syscall(__NR_FSTATAT64, fildes, "", MAKE_NAME(buf_, arch_stat64), AT_EMPTY_PATH);
+#else
 	rv = _pure_syscall(MAKE_NAME(__NR_f, arch_stat64), fildes, MAKE_NAME(buf_, arch_stat64));
+#endif
 	if (rv >= 0)
 		arch_stat64_2_stat(MAKE_NAME(buf_, arch_stat64), buf_stat);
 
@@ -295,7 +305,7 @@ int fstat(int fildes, struct stat* buf_stat)
 }
 
 int stat64(const char* pathname,struct stat64* buf){
-#ifdef __USE_FSTATAT64
+#ifdef __USE_NEWSTAT64_STAT
 	return _pure_syscall(__NR_FSTATAT64, AT_FDCWD, pathname, buf, 0);
 #else
 	return _pure_syscall(MAKE_NAME(__NR_, arch_stat64), pathname, buf);
@@ -303,7 +313,7 @@ int stat64(const char* pathname,struct stat64* buf){
 }
 
 int lstat64(const char* pathname,struct stat64* buf){
-#ifdef __USE_FSTATAT64
+#ifdef __USE_NEWSTAT64_STAT
   return _pure_syscall(__NR_FSTATAT64, AT_FDCWD, pathname, buf, AT_SYMLINK_NOFOLLOW);
 #else
   return _pure_syscall(MAKE_NAME(__NR_l, arch_stat64), pathname, buf);
@@ -311,7 +321,11 @@ int lstat64(const char* pathname,struct stat64* buf){
 }
 
 int fstat64 (int fildes, struct stat64 *buf){
+#ifdef __USE_NEWSTAT64_FTAT
+  return _pure_syscall(__NR_FSTATAT64, fildes, "", buf, AT_EMPTY_PATH);
+#else
   return _pure_syscall(MAKE_NAME(__NR_f, arch_stat64), fildes, buf);
+#endif
 }
 
 int mknod(const char *pathname, mode_t mode, dev_t dev) {
@@ -331,7 +345,7 @@ int __xstat(int ver, const char* pathname, struct stat* buf_stat)
 	switch(ver)
 	{
 		case _STAT_VER_LINUX:
-#ifdef __USE_FSTATAT64
+#ifdef __USE_NEWSTAT64_STAT
 			rv = _pure_syscall(__NR_FSTATAT64, AT_FDCWD, pathname, MAKE_NAME(buf_, arch_stat64), 0);
 #else
 			rv = _pure_syscall(MAKE_NAME(__NR_, arch_stat64), pathname, MAKE_NAME(buf_, arch_stat64));
@@ -357,7 +371,7 @@ int __lxstat(int ver, const char* pathname, struct stat* buf_stat)
 	switch(ver)
 	{
 		case _STAT_VER_LINUX:
-#ifdef __USE_FSTATAT64
+#ifdef __USE_NEWSTAT64_STAT
 			rv = _pure_syscall(__NR_FSTATAT64, AT_FDCWD, pathname, MAKE_NAME(buf_, arch_stat64), AT_SYMLINK_NOFOLLOW);
 #else
 			rv = _pure_syscall(MAKE_NAME(__NR_l, arch_stat64), pathname, MAKE_NAME(buf_, arch_stat64));
@@ -382,7 +396,11 @@ int __fxstat(int ver, int fildes, struct stat* buf_stat)
 	switch(ver)
 	{
 		case _STAT_VER_LINUX:
+#ifdef __USE_NEWSTAT64_FSTAT
+			rv = _pure_syscall(__NR_FSTATAT64, fildes, "", MAKE_NAME(buf_, arch_stat64), AT_EMPTY_PATH);
+#else
 			rv = _pure_syscall(MAKE_NAME(__NR_f, arch_stat64), fildes, MAKE_NAME(buf_, arch_stat64));
+#endif
 			break;
 
 		default:
@@ -396,7 +414,7 @@ int __fxstat(int ver, int fildes, struct stat* buf_stat)
 }
 
 int __xstat64(int ver,const char* pathname,struct stat64* buf){
-#ifdef __USE_FSTATAT64
+#ifdef __USE_NEWSTAT64_STAT
 	return _pure_syscall(__NR_FSTATAT64, AT_FDCWD, pathname, buf, 0);
 #else
 	return _pure_syscall(MAKE_NAME(__NR_, arch_stat64), pathname, buf);
@@ -404,7 +422,7 @@ int __xstat64(int ver,const char* pathname,struct stat64* buf){
 }
 
 int __lxstat64(int ver,const char* pathname,struct stat64* buf){
-#ifdef __USE_FSTATAT64
+#ifdef __USE_NEWSTAT64_STAT
 	return _pure_syscall(__NR_FSTATAT64, AT_FDCWD, pathname, buf,	AT_SYMLINK_NOFOLLOW);
 #else
 	return _pure_syscall(MAKE_NAME(__NR_l, arch_stat64), pathname, buf);
@@ -412,7 +430,11 @@ int __lxstat64(int ver,const char* pathname,struct stat64* buf){
 }
 
 int __fxstat64 (int ver, int fildes, struct stat64 *buf){
+#ifdef __USE_NEWSTAT64_FSTAT
+	return _pure_syscall(__NR_FSTATAT64, fildes, "", buf,	AT_EMPTY_PATH);
+#else
 	return _pure_syscall(MAKE_NAME(__NR_f, arch_stat64), fildes, buf);
+#endif
 }
 
 #ifdef __NR_FSTATAT64
