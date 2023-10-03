@@ -9,7 +9,7 @@ include(GNUInstallDirs)
 include(CheckPrototypeDefinition)
 
 set(CMAKE_C_FLAGS
-    "${CMAKE_C_FLAGS} -D_FORTIFY_SOURCE=2 -ggdb -Wall -Wextra -pedantic -std=gnu11 -Wno-incompatible-pointer-types -Wno-unused-parameter")
+    "${CMAKE_C_FLAGS} -O2 -D_FORTIFY_SOURCE=2 -ggdb -Wall -Wextra -pedantic -std=gnu11 -Wno-incompatible-pointer-types -Wno-unused-parameter")
 find_library(LIBDL dl)
 
 add_definitions(-D_GNU_SOURCE)

@@ -253,7 +253,7 @@ static void arch_stat64_2_stat(struct arch_stat64 *from, struct stat *to)
 #if __GNUC_PREREQ (2,33)
 int stat(const char* pathname, struct stat* buf_stat)
 {
-	IFNOT64(struct stat64 *buf_stat64 = alloca(sizeof(struct stat64));)
+	IFNOT64(struct stat64 *buf_stat64 = alloca(sizeof(struct stat64)));
 		int rv;
 
 #ifdef __USE_FSTATAT64
@@ -269,7 +269,7 @@ int stat(const char* pathname, struct stat* buf_stat)
 
 int lstat(const char* pathname, struct stat* buf_stat)
 {
-	IFNOT64(struct stat64 *buf_stat64 = alloca(sizeof(struct stat64));)
+	IFNOT64(struct stat64 *buf_stat64 = alloca(sizeof(struct stat64)));
 		int rv;
 
 #ifdef __USE_FSTATAT64
@@ -285,7 +285,7 @@ int lstat(const char* pathname, struct stat* buf_stat)
 
 int fstat(int fildes, struct stat* buf_stat)
 {
-	IFNOT64(struct stat64 *buf_stat64 = alloca(sizeof(struct stat64));)
+	IFNOT64(struct stat64 *buf_stat64 = alloca(sizeof(struct stat64)));
 		int rv;
 	rv = _pure_syscall(MAKE_NAME(__NR_f, arch_stat64), fildes, MAKE_NAME(buf_, arch_stat64));
 	if (rv >= 0)
@@ -325,7 +325,7 @@ int mknod(const char *pathname, mode_t mode, dev_t dev) {
 #else
 int __xstat(int ver, const char* pathname, struct stat* buf_stat)
 {
-	IFNOT64(struct stat64 *buf_stat64 = alloca(sizeof(struct stat64));)
+	IFNOT64(struct stat64 *buf_stat64 = alloca(sizeof(struct stat64)));
 	int rv;
 	
 	switch(ver)
@@ -351,7 +351,7 @@ int __xstat(int ver, const char* pathname, struct stat* buf_stat)
 
 int __lxstat(int ver, const char* pathname, struct stat* buf_stat)
 {
-	IFNOT64(struct stat64 *buf_stat64 = alloca(sizeof(struct stat64));)
+	IFNOT64(struct stat64 *buf_stat64 = alloca(sizeof(struct stat64)));
 	int rv;
 	
 	switch(ver)
@@ -377,7 +377,7 @@ int __lxstat(int ver, const char* pathname, struct stat* buf_stat)
 
 int __fxstat(int ver, int fildes, struct stat* buf_stat)
 {
-	IFNOT64(struct stat64 *buf_stat64 = alloca(sizeof(struct stat64));)
+	IFNOT64(struct stat64 *buf_stat64 = alloca(sizeof(struct stat64)));
 	int rv;
 	switch(ver)
 	{
@@ -421,7 +421,7 @@ int __fxstatat64 (int ver, int dirfd, const char *pathname, struct stat64 *buf, 
 }
 int __fxstatat(int ver, int fildes, const char *pathname, struct stat* buf_stat,int flags)
 {
-	IFNOT64(struct stat64 *buf_stat64 = alloca(sizeof(struct stat64));)
+	IFNOT64(struct stat64 *buf_stat64 = alloca(sizeof(struct stat64)));
 	int rv;
 	switch(ver)
 	{
