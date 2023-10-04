@@ -1070,7 +1070,7 @@ pid_t fork(void){
 		return -1;
 	else
 		return child_tid;
-#elif defined(__aarch64__) || defined(__riscv) && __riscv_xlen==64
+#elif defined(__aarch64__) || (defined(__riscv) && __riscv_xlen==64) || defined(__loongarch__)
 	int child_tid;
 	if (_pure_syscall(__NR_clone, NULL, CLONE_CHILD_CLEARTID|CLONE_CHILD_SETTID|SIGCHLD, &child_tid) < 0)
 		return -1;
@@ -1120,7 +1120,8 @@ int nice(int inc){
 	defined(__alpha__) || defined(__s390x__) || \
 	(defined(__mips__) && defined(__LP64__)) || \
 	defined(__aarch64__) || \
-	(defined(__riscv) && __riscv_xlen==64)
+	(defined(__riscv) && __riscv_xlen==64) || \
+	defined(__loongarch__)
 	int nice = _pure_syscall(__NR_getpriority,PRIO_PROCESS,0);
 	return _pure_syscall(__NR_setpriority,PRIO_PROCESS,0,nice + inc);
 #else
@@ -1249,7 +1250,7 @@ int select(int n, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct t
 #if defined(__x86_64__) || defined(__s390x__) || \
 	defined(__alpha__) || defined(__ia64__)
 	return _pure_syscall(__NR_select,n,readfds,writefds,exceptfds,timeout);
-#elif defined(__aarch64__) || defined(__riscv) && __riscv_xlen==64
+#elif defined(__aarch64__) || (defined(__riscv) && __riscv_xlen==64) || defined(__loongarch__)
 	if (timeout == NULL)
 		return pselect(n,readfds,writefds,exceptfds,NULL,NULL);
 	else {
