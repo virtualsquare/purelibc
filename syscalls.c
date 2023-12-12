@@ -1745,7 +1745,13 @@ int fchmodat(int dirfd, const char *pathname, mode_t mode, int flags){
 #ifdef __NR_faccessat
 //The raw faccessat() system call takes only the first  three  arguments
 // this function has been inspired by glibc: sysdeps/unix/sysv/linux/faccessat.c
+// if the kernel supports faccessat2 use it!
 int faccessat(int dirfd, const char *pathname, int mode, int flags){
+#ifdef __NR_faccessat2
+	int ret = _pure_syscall(__NR_faccessat2, dirfd, pathname, mode, flags);
+	if (ret == 0 || errno != ENOSYS)
+    return ret;
+#endif
 	if (flags & ~(AT_EACCESS | AT_SYMLINK_NOFOLLOW)) {
     errno = EINVAL;
     return -1;
