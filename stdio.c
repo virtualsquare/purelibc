@@ -160,9 +160,11 @@ static FILE *_pure_fopen (const char *filename, const char * modes, int flags){
 		return new_pure_file(fd,modes);
 }
 
+#ifndef __USE_FILE_OFFSET64
 FILE *fopen (const char *filename, const char *modes){
 	return _pure_fopen(filename, modes, _pure_parse_mode(modes));
 }
+#endif
 
 FILE *fopen64 (const char *filename, const char *modes){
 	return _pure_fopen(filename, modes, _pure_parse_mode(modes)|O_LARGEFILE);
@@ -172,6 +174,7 @@ FILE *fdopen (int fd, const char *modes){
 	return new_pure_file(fd,modes);
 }
 
+#ifndef __USE_FILE_OFFSET64
 FILE *tmpfile (void){
 	int fd;
 	char template[20] = "/tmp/tmpfile-XXXXXX";
@@ -182,6 +185,7 @@ FILE *tmpfile (void){
 		return new_pure_file(fd,"rw");
 	}
 }
+#endif
 
 FILE *tmpfile64 (void){
 	int fd;
@@ -235,9 +239,11 @@ static FILE *_pure_freopen (const char *filename, const char *modes, FILE *strea
 	}
 }
 
+#ifndef __USE_FILE_OFFSET64
 FILE *freopen (const char *filename, const char *modes, FILE *stream){
 	return _pure_freopen(filename, modes, stream);
 }
+#endif
 
 FILE *freopen64 (const char *filename, const char *modes, FILE *stream){
 	return _pure_freopen(filename, modes, stream);

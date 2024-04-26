@@ -89,6 +89,8 @@ int closedir(DIR *dir){
 
 #define _MAX_OFF_T ((__off_t) -1)
 
+ssize_t getdents64(int fd, void *buffer, size_t length);
+#ifndef __USE_FILE_OFFSET64
 struct dirent *readdir(DIR *dir){
 	register struct dirent64 *de64=readdir64(dir);
 	if(de64 == NULL)
@@ -102,8 +104,7 @@ struct dirent *readdir(DIR *dir){
 		return &(dir->de32);
 	}
 }
-
-ssize_t getdents64(int fd, void *buffer, size_t length);
+#endif
 
 struct dirent64 *readdir64(DIR *dir){
 	register struct dirent64 *this;
@@ -187,11 +188,13 @@ error:
 	return -1;
 }
 
+#ifndef __USE_FILE_OFFSET64
 int scandir(const char *dirp, struct dirent ***namelist,
 		int (*filter)(const struct dirent *),
 		int (*compar)(const struct dirent **, const struct dirent **)) {
 	return common_scandir(AT_FDCWD, dirp, (void *) namelist, (filter_t) filter, (compar_t) compar, (xreaddir_t) readdir, sizeof(struct dirent));
 }
+#endif
 
 int scandir64(const char *dirp, struct dirent64 ***namelist,
 		int (*filter)(const struct dirent64 *),
@@ -199,11 +202,13 @@ int scandir64(const char *dirp, struct dirent64 ***namelist,
 	return common_scandir(AT_FDCWD, dirp, (void *) namelist, (filter_t) filter, (compar_t) compar, (xreaddir_t) readdir, sizeof(struct dirent64));
 }
 
+#ifndef __USE_FILE_OFFSET64
 int scandirat(int dirfd, const char *dirp, struct dirent ***namelist,
 		int (*filter)(const struct dirent *),
 		int (*compar)(const struct dirent **, const struct dirent **)) {
 	return common_scandir(dirfd, dirp, (void *) namelist, (filter_t) filter, (compar_t) compar, (xreaddir_t) readdir, sizeof(struct dirent));
 }
+#endif
 
 int scandirat64(int dirfd, const char *dirp, struct dirent64 ***namelist,
 		int (*filter)(const struct dirent64 *),

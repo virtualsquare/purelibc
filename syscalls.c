@@ -66,6 +66,7 @@
 sfun _pure_syscall = syscall;
 sfun _pure_native_syscall;
 
+#if 1
 #if defined(__NR_mmap2)
 static int _pageshift()
 {
@@ -95,7 +96,7 @@ long _pure_debug_printf(const char *format, ...)
 }
 
 // open must consider two mode of calling: with two or three arguments
-int __open_2(const char* pathname,int flags){
+static int __purelibc_open_2(const char* pathname,int flags){
 #if defined(__NR_openat) && ! defined(__NR_open)
 	return _pure_syscall(__NR_openat,AT_FDCWD,pathname,flags);
 #else
@@ -103,7 +104,13 @@ int __open_2(const char* pathname,int flags){
 #endif
 }
 
-static int __open_3(const char* pathname,int flags, mode_t mode) {
+#ifndef __USE_FILE_OFFSET64
+int __open_2(const char* pathname,int flags){
+	return __purelibc_open_2(pathname, flags);
+}
+#endif
+
+static int __purelibc_open_3(const char* pathname,int flags, mode_t mode) {
 #if defined(__NR_openat) && ! defined(__NR_open)
 	return _pure_syscall(__NR_openat,AT_FDCWD,pathname,flags,mode);
 #else
@@ -111,6 +118,7 @@ static int __open_3(const char* pathname,int flags, mode_t mode) {
 #endif
 }
 
+#ifndef __USE_FILE_OFFSET64
 int open(const char* pathname,int flags,...){
 	va_list arg_list;
 	if( flags &  O_CREAT ){
@@ -118,11 +126,12 @@ int open(const char* pathname,int flags,...){
 		va_start(arg_list,flags);
 		mode = va_arg(arg_list,mode_t);
 		va_end(arg_list);
-		return __open_3(pathname,flags,mode);
+		return __purelibc_open_3(pathname,flags,mode);
 	}
 	else
-		return __open_2(pathname,flags);
+		return __purelibc_open_2(pathname,flags);
 }
+#endif
 
 int open64(const char* pathname,int flags,...){
 	va_list arg_list;
@@ -131,24 +140,26 @@ int open64(const char* pathname,int flags,...){
 		va_start(arg_list,flags);
 		mode = va_arg(arg_list,mode_t);
 		va_end(arg_list);
-		return __open_3(pathname,flags|O_LARGEFILE,mode);
+		return __purelibc_open_3(pathname,flags|O_LARGEFILE,mode);
 	}
 	else
-		return __open_2(pathname,flags|O_LARGEFILE);
+		return __purelibc_open_2(pathname,flags|O_LARGEFILE);
 }
 
 int __open64_2 (const char* pathname,int flags){
-	return __open_2(pathname,flags|O_LARGEFILE);
+	return __purelibc_open_2(pathname,flags|O_LARGEFILE);
 }
 
+#ifndef __USE_FILE_OFFSET64
 int creat(const char *pathname, mode_t mode)
 {
-	return __open_3(pathname,O_CREAT|O_WRONLY|O_TRUNC,mode);
+	return __purelibc_open_3(pathname,O_CREAT|O_WRONLY|O_TRUNC,mode);
 }
+#endif
 
 int creat64(const char *pathname, mode_t mode)
 {
-	return __open_3(pathname,O_CREAT|O_WRONLY|O_TRUNC|O_LARGEFILE,mode);
+	return __purelibc_open_3(pathname,O_CREAT|O_WRONLY|O_TRUNC|O_LARGEFILE,mode);
 }
 
 int close(int fd){
@@ -266,6 +277,7 @@ int __purelibc_newstat64(int dirfd, const char *restrict pathname,
 #define INTERNAL_MAKE_NAME(a, b) a ## b
 #define MAKE_NAME(a, b) INTERNAL_MAKE_NAME(a, b)
 
+#ifndef __USE_TIME_BITS64
 static void arch_stat64_2_stat(struct arch_stat64 *from, struct stat *to)
 {
 	if ((void*)from == (void*)to)
@@ -287,8 +299,10 @@ static void arch_stat64_2_stat(struct arch_stat64 *from, struct stat *to)
 
 	return;
 }
+#endif
 
 #if __GNUC_PREREQ (2,33)
+#ifndef __USE_TIME_BITS64
 int stat(const char* pathname, struct stat* buf_stat)
 {
 	IFNOT64(struct stat64 *buf_stat64 = alloca(sizeof(struct stat64)));
@@ -335,6 +349,7 @@ int fstat(int fildes, struct stat* buf_stat)
 
 	return rv;
 }
+#endif
 
 int stat64(const char* pathname,struct stat64* buf){
 #ifdef __USE_NEWSTAT64_STAT
@@ -649,15 +664,19 @@ int utime(const char* pathname,const struct utimbuf *buf){
 }
 
 #ifdef __NR_pread
+#ifndef __USE_FILE_OFFSET64
 ssize_t pread(int fs,void* buf, size_t count, __off_t offset){
 	return _pure_syscall(__NR_pread,fs,buf,count,offset);
 }
 #endif
+#endif
 
 #ifdef __NR_pwrite
+#ifndef __USE_FILE_OFFSET64
 ssize_t pwrite(int fs,const void* buf, size_t count, __off_t offset){
 	return _pure_syscall(__NR_pwrite,fs,buf,count,offset);
 }
+#endif
 #endif
 
 #ifdef __NR_pread64
@@ -668,9 +687,11 @@ ssize_t pread64(int fs,void* buf, size_t count, __off64_t offset){
 #endif
 			__LONG_LONG_PAIR((__off_t)(offset>>32),(__off_t)(offset&0xffffffff)));
 }
+#ifndef __USE_FILE_OFFSET64
 ssize_t pread(int fs,void* buf, size_t count, __off_t offset){
 	return pread64(fs,buf,count,(__off64_t)offset);
 }
+#endif
 #endif
 
 #ifdef __NR_pwrite64
@@ -681,9 +702,11 @@ ssize_t pwrite64(int fs,const void* buf, size_t count, __off64_t offset){
 #endif
 			__LONG_LONG_PAIR((__off_t)(offset>>32),(__off_t)(offset&0xffffffff)));
 }
+#ifndef __USE_FILE_OFFSET64
 ssize_t pwrite(int fs,const void* buf, size_t count, __off_t offset){
 	return pwrite64(fs,buf,count,(__off64_t)offset);
 }
+#endif
 #endif
 
 #ifdef __NR_preadv
@@ -720,9 +743,11 @@ ssize_t preadv64(int fs,const struct iovec *iov, int iovcnt, __off64_t offset){
 	return rv;
 }
 
+#ifndef __USE_FILE_OFFSET64
 ssize_t preadv(int fs,const struct iovec *iov, int iovcnt, __off_t offset){
 	return preadv64(fs,iov,iovcnt,(__off64_t)offset);
 }
+#endif
 #endif
 
 #ifdef __NR_pwritev
@@ -756,9 +781,11 @@ ssize_t pwritev64(int fs,const struct iovec *iov, int iovcnt, __off64_t offset){
 	return rv;
 }
 
+#ifndef __USE_FILE_OFFSET64
 ssize_t pwritev(int fs,const struct iovec *iov, int iovcnt, __off_t offset){
 	return pwritev64(fs,iov,iovcnt,(__off64_t)offset);
 }
+#endif
 #endif
 
 /* getdents has no libc wrapper.
@@ -776,9 +803,11 @@ __ssize_t getdents64(int fd, void *dirp, size_t count){
 	return _pure_syscall(__NR_getdents64, fd, dirp, count);
 }
 
+#ifndef __USE_FILE_OFFSET64
 __off_t lseek(int fd,__off_t offset,int whence){
 	return _pure_syscall(__NR_lseek,fd,offset,whence);
 }
+#endif
 
 #ifndef __NR__llseek
 off64_t lseek64(int fd, off64_t offset, int whence) {
@@ -886,6 +915,7 @@ int ioctl(int fd,unsigned long int request, ...){
 	return rv;
 }
 
+#ifndef __USE_TIME_BITS64
 int fcntl(int fd, int cmd, ...){
 	va_list ap;
 	long int arg1;
@@ -908,6 +938,7 @@ int fcntl(int fd, int cmd, ...){
 	return _pure_syscall(__NR_fcntl,fd,cmd,arg1,arg2);
 #endif
 }
+#endif
 
 #ifdef __NR_fcntl64
 int fcntl64(int fd, int cmd, ...){
@@ -1303,13 +1334,17 @@ int epoll_pwait(int epfd, struct epoll_event *events,
 }
 #endif
 
+#ifndef __USE_FILE_OFFSET64
 int truncate(const char *path, __off_t length){
 	return _pure_syscall(__NR_truncate,path,length);
 }
+#endif
 
+#ifndef __USE_FILE_OFFSET64
 int ftruncate(int fd, __off_t length){
 	return _pure_syscall(__NR_ftruncate,fd,length);
 }
+#endif
 
 #ifdef __NR_truncate64
 int truncate64(const char *path, __off64_t length){
@@ -1339,13 +1374,17 @@ int setpriority(__priority_which_t which, id_t who, int prio){
 	return _pure_syscall(__NR_setpriority,which,who,prio);
 }
 
+#ifndef __USE_FILE_OFFSET64
 int statfs(const char *path, struct statfs *buf){
 	return _pure_syscall(__NR_statfs,path,buf);
 }
+#endif
 
+#ifndef __USE_FILE_OFFSET64
 int fstatfs(int fd, struct statfs *buf){
 	return _pure_syscall(__NR_fstatfs,fd,buf);
 }
+#endif
 
 #ifdef __NR_statfs64
 /* LIBC add an extra arg: the buf size */
@@ -1639,6 +1678,7 @@ int ftime(struct timeb *tp){
 /* *at syscalls */
 
 #ifdef __NR_openat
+#ifndef __USE_FILE_OFFSET64
 int openat(int dirfd,const char* pathname,int flags,...){
 	va_list arg_list;
 	if( flags &  O_CREAT ){
@@ -1651,6 +1691,7 @@ int openat(int dirfd,const char* pathname,int flags,...){
 	else
 		return _pure_syscall(__NR_openat,dirfd,pathname,flags);
 }
+#endif
 
 int openat64(int dirfd,const char* pathname,int flags,...){
 	va_list arg_list;
@@ -1665,10 +1706,12 @@ int openat64(int dirfd,const char* pathname,int flags,...){
 		return _pure_syscall(__NR_openat,dirfd,pathname,flags|O_LARGEFILE);
 }
 
+#ifndef __USE_FILE_OFFSET64
 int	__openat_2(int dirfd, const char *pathname, int flags)
 {
 	return _pure_syscall(__NR_openat,dirfd,pathname,flags);
 }
+#endif
 
 int	__openat64_2(int dirfd, const char *pathname, int flags)
 {
@@ -1874,6 +1917,7 @@ sfun _pure_start(sfun pure_syscall, int flags)
 	return _pure_native_syscall;
 }
 
+#endif
 /* this is convenient since casting the return value of dlsym() to
  * a function pointer erroneously procudes a warning */
 #pragma GCC diagnostic ignored "-Wpedantic"
