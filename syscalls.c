@@ -1012,6 +1012,7 @@ int setegid(gid_t egid){
 uid_t getuid(void) {
 	return _pure_syscall(__NR_getuid);
 }
+
 uid_t __getuid(void) {
 	return getuid();
 }
@@ -1026,6 +1027,7 @@ gid_t __getgid(void) {
 uid_t geteuid(void) {
 	return _pure_syscall(__NR_geteuid);
 }
+
 uid_t __geteuid(void) {
 	return geteuid();
 }
@@ -1033,6 +1035,7 @@ uid_t __geteuid(void) {
 gid_t getegid(void) {
 	return _pure_syscall(__NR_getegid);
 }
+
 gid_t __getegid(void) {
 	return getegid();
 }
@@ -1051,6 +1054,14 @@ int setresuid(uid_t ruid, uid_t euid, uid_t suid){
 
 int setresgid(gid_t rgid, gid_t egid, gid_t sgid){
 	return _pure_syscall(__NR_setresgid,rgid,egid,sgid);
+}
+
+int getresuid(uid_t *ruid, uid_t *euid, uid_t *suid) {
+	return _pure_syscall(__NR_getresuid, ruid, euid, suid);
+}
+
+int getresgid(gid_t *rgid, gid_t *egid, gid_t *sgid) {
+	return _pure_syscall(__NR_getresgid, rgid, egid, sgid);
 }
 
 int pipe(int filedes[2]) {
