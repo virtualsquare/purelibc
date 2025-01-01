@@ -66,7 +66,6 @@
 sfun _pure_syscall = syscall;
 sfun _pure_native_syscall;
 
-#if 1
 #if defined(__NR_mmap2)
 static int _pageshift()
 {
@@ -78,7 +77,7 @@ static int _pageshift()
 	}
 	return ps;
 }
-#endif
+#endif //defined(__NR_mmap2)
 
 long _pure_debug_printf(const char *format, ...)
 {
@@ -131,7 +130,7 @@ int open(const char* pathname,int flags,...){
 	else
 		return __purelibc_open_2(pathname,flags);
 }
-#endif
+#endif // ! __USE_FILE_OFFSET64
 
 int open64(const char* pathname,int flags,...){
 	va_list arg_list;
@@ -249,10 +248,10 @@ int __purelibc_newstat64(int dirfd, const char *restrict pathname,
   }
   return rv;
 }
-#else
+#else // defined(__NR_statx) && ! defined(__NR_FSTATAT64)
 	#define __purelibc_newstat64(dirfd, pathname, statbuf, flags) \
 		_pure_syscall(__NR_FSTATAT64, (dirfd), (pathname), (statbuf), (flags))
-#endif
+#endif // defined(__NR_statx) && ! defined(__NR_FSTATAT64)
 
 #if __WORDSIZE == 64 || defined(__ILP32__)
 # if defined(__NR_FSTATAT64) && ! defined(__NR_stat)
@@ -263,7 +262,7 @@ int __purelibc_newstat64(int dirfd, const char *restrict pathname,
 # endif
 #	define arch_stat64 stat
 #	define IFNOT64(x)
-#else
+#else // __WORDSIZE == 64 || defined(__ILP32__)
 # if defined(__NR_FSTATAT64) && ! defined(__NR_stat64)
 #  define __USE_NEWSTAT64_STAT
 # endif
@@ -272,7 +271,7 @@ int __purelibc_newstat64(int dirfd, const char *restrict pathname,
 # endif
 #	define arch_stat64 stat64
 #	define IFNOT64(x) x
-#endif
+#endif // __WORDSIZE == 64 || defined(__ILP32__)
 
 #define INTERNAL_MAKE_NAME(a, b) a ## b
 #define MAKE_NAME(a, b) INTERNAL_MAKE_NAME(a, b)
@@ -299,10 +298,11 @@ static void arch_stat64_2_stat(struct arch_stat64 *from, struct stat *to)
 
 	return;
 }
-#endif
+#endif // __USE_TIME_BITS64
 
 #if __GNUC_PREREQ (2,33)
 #ifndef __USE_TIME_BITS64
+
 int stat(const char* pathname, struct stat* buf_stat)
 {
 	IFNOT64(struct stat64 *buf_stat64 = alloca(sizeof(struct stat64)));
@@ -349,7 +349,34 @@ int fstat(int fildes, struct stat* buf_stat)
 
 	return rv;
 }
+
+#else // ! __USE_TIME_BITS64
+
+int stat(const char* pathname,struct stat* buf){
+#ifdef __USE_NEWSTAT64_STAT
+  return __purelibc_newstat64(AT_FDCWD, pathname, buf, 0);
+#else
+  return _pure_syscall(MAKE_NAME(__NR_, arch_stat64), pathname, buf);
 #endif
+}
+
+int lstat(const char* pathname,struct stat* buf){
+#ifdef __USE_NEWSTAT64_STAT
+	return __purelibc_newstat64(AT_FDCWD, pathname, buf, AT_SYMLINK_NOFOLLOW);
+#else
+	return _pure_syscall(MAKE_NAME(__NR_l, arch_stat64), pathname, buf);
+#endif
+}
+
+int fstat (int fildes, struct stat *buf){
+#ifdef __USE_NEWSTAT64_FSTAT
+  return __purelibc_newstat64(fildes, "", buf, AT_EMPTY_PATH);
+#else
+  return _pure_syscall(MAKE_NAME(__NR_f, arch_stat64), fildes, buf);
+#endif
+}
+
+#endif // ! __USE_TIME_BITS64
 
 int stat64(const char* pathname,struct stat64* buf){
 #ifdef __USE_NEWSTAT64_STAT
@@ -383,7 +410,7 @@ int mknod(const char *pathname, mode_t mode, dev_t dev) {
 #endif
 }
 
-#else
+#else // __GNUC_PREREQ (2,33)
 int __xstat(int ver, const char* pathname, struct stat* buf_stat)
 {
 	IFNOT64(struct stat64 *buf_stat64 = alloca(sizeof(struct stat64)));
@@ -516,8 +543,8 @@ int __xmknod (int ver, const char *path, mode_t mode, dev_t *dev) {
 #endif
 }
 
+#endif // __GNUC_PREREQ (2,33)
 /* end of unreadable code */
-#endif
 
 #ifdef __NR_FSTATAT64
 int fstatat(int dirfd, const char *pathname, struct stat *buf, int flags) {
@@ -692,7 +719,7 @@ ssize_t pread(int fs,void* buf, size_t count, __off_t offset){
 	return pread64(fs,buf,count,(__off64_t)offset);
 }
 #endif
-#endif
+#endif // __NR_pread64
 
 #ifdef __NR_pwrite64
 ssize_t pwrite64(int fs,const void* buf, size_t count, __off64_t offset){
@@ -707,7 +734,7 @@ ssize_t pwrite(int fs,const void* buf, size_t count, __off_t offset){
 	return pwrite64(fs,buf,count,(__off64_t)offset);
 }
 #endif
-#endif
+#endif // __NR_pwrite64
 
 #ifdef __NR_preadv
 ssize_t preadv64(int fs,const struct iovec *iov, int iovcnt, __off64_t offset){
@@ -748,7 +775,7 @@ ssize_t preadv(int fs,const struct iovec *iov, int iovcnt, __off_t offset){
 	return preadv64(fs,iov,iovcnt,(__off64_t)offset);
 }
 #endif
-#endif
+#endif // __NR_preadv
 
 #ifdef __NR_pwritev
 ssize_t pwritev64(int fs,const struct iovec *iov, int iovcnt, __off64_t offset){
@@ -786,7 +813,7 @@ ssize_t pwritev(int fs,const struct iovec *iov, int iovcnt, __off_t offset){
 	return pwritev64(fs,iov,iovcnt,(__off64_t)offset);
 }
 #endif
-#endif
+#endif // __NR_pwritev
 
 /* getdents has no libc wrapper.
 	 libc uses getdents64 only on 64 bit archs */
@@ -898,7 +925,7 @@ static int ioctl_ppc(int fd,unsigned long int request, long int arg){
 	}
 	return result;
 }
-#endif
+#endif // defined(__powerpc__)
 
 int ioctl(int fd,unsigned long int request, ...){
 	va_list ap;
@@ -1928,7 +1955,6 @@ sfun _pure_start(sfun pure_syscall, int flags)
 	return _pure_native_syscall;
 }
 
-#endif
 /* this is convenient since casting the return value of dlsym() to
  * a function pointer erroneously procudes a warning */
 #pragma GCC diagnostic ignored "-Wpedantic"
