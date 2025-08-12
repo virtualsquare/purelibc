@@ -1,24 +1,24 @@
 /* This is part of pure_libc (a project related to ViewOS and Virtual Square)
- * 
+ *
  * stdio.c: stdio calls
- * 
+ *
  * Copyright 2006-2017 Renzo Davoli University of Bologna - Italy
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- * 
+ *
  * The GNU C Library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Lesser General Public
  * License along with the GNU C Library; if not, write to the Free
  * Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA.
- */ 
+ */
 
 #include <config.h>
 #include <stdio.h>
@@ -103,7 +103,7 @@ static FILE *new_pure_file(int fd, const char *modes)
 			free(n);
 			return  NULL;
 		}
-	} else 
+	} else
 		return NULL;
 }
 
@@ -218,7 +218,7 @@ static FILE *_pure_freopen (const char *filename, const char *modes, FILE *strea
 			 fd=dup2(fdtmp,fd);
 		 else
 			 fd=fdtmp;
-		 if (fd>=0) 
+		 if (fd>=0)
 			 newstream=fdopen(fd,modes);
 		 if (isatty(fd))
 			 setlinebuf(newstream);
@@ -307,11 +307,16 @@ int fileno (FILE *stream){
 		buf[3]=(stream == NULL)?'X':'-';
 		buf[4]=(!_pure_magic(stream))?'X':'-';
 		write (2,buf,6);*/
-	if (stream == NULL) 
-		return -1;
+	if
+#if __GLIBC__ >= 2 && __GLIBC_MINOR__ >= 39
+		(0)
+#else
+			(stream == NULL)
+#endif
+			return -1;
 	else {
 		int rv=0;
-		int (*_fileno)()=dlsym(RTLD_NEXT,"fileno");
+		int (*_fileno)(FILE *)=dlsym(RTLD_NEXT,"fileno");
 		if (_fileno) {
 			rv=_fileno(stream);
 			if (rv<0) {
@@ -330,11 +335,16 @@ int fileno_unlocked (FILE *stream){
 		buf[3]=(stream == NULL)?'X':'-';
 		buf[4]=(!_pure_magic(stream))?'X':'-';
 		write (2,buf,6);*/
-	if (stream == NULL) 
-		return -1;
+	if
+#if __GLIBC__ >= 2 && __GLIBC_MINOR__ >= 39
+		(0)
+#else
+			(stream == NULL)
+#endif
+			return -1;
 	else {
 		int rv=0;
-		int (*_fileno)()=dlsym(RTLD_NEXT,"fileno");
+		int (*_fileno)(FILE *)=dlsym(RTLD_NEXT,"fileno");
 		if (_fileno) {
 			rv=_fileno(stream);
 			if (rv<0) {
