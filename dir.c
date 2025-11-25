@@ -2,7 +2,7 @@
  * 
  * dir.c: Directory management
  * 
- * Copyright 2006-2017 Renzo Davoli University of Bologna - Italy
+ * Copyright 2006-2025 Renzo Davoli University of Bologna - Italy
  * 
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public

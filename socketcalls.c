@@ -2,7 +2,7 @@
  * 
  * socketcall.c: socketcall mgmt
  * 
- * Copyright 2006-2017 Renzo Davoli University of Bologna - Italy
+ * Copyright 2006-2025 Renzo Davoli University of Bologna - Italy
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
