@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 project(purelibc
- VERSION 1.0.9
+ VERSION 1.0.10
  DESCRIPTION "A glibc overlay library for process self-virtualization."
  HOMEPAGE_URL "https://github.com/virtualsquare/purelibc"
  LANGUAGES C)
