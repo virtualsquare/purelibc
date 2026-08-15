@@ -351,6 +351,7 @@ int fstat(int fildes, struct stat* buf_stat)
 }
 
 #else // ! __USE_TIME_BITS64
+#if __WORDSIZE == 64
 
 int stat(const char* pathname,struct stat* buf){
 #ifdef __USE_NEWSTAT64_STAT
@@ -376,6 +377,7 @@ int fstat (int fildes, struct stat *buf){
 #endif
 }
 
+#endif
 #endif // ! __USE_TIME_BITS64
 
 int stat64(const char* pathname,struct stat64* buf){
